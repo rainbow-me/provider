@@ -1,3 +1,1 @@
-export class RainbowProvider {
-    
-}
+export class RainbowProvider {}

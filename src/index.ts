@@ -1,1 +1,1 @@
-export { RainbowProvider } from './RainbowProvider'
+export { RainbowProvider } from './RainbowProvider';

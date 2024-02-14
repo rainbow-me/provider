@@ -21,7 +21,6 @@ export class RainbowProvider extends EventEmitter {
 
   #isUnlocked = true;
   requestId = 0;
-  rainbowIsDefaultProvider = false;
 
   private backgroundMessenger?: IMessenger;
   private providerRequestTransport?: IProviderRequestTransport;
@@ -32,15 +31,17 @@ export class RainbowProvider extends EventEmitter {
     backgroundMessenger,
     providerRequestTransport,
     onConstruct,
-  }: {
-    backgroundMessenger?: IMessenger;
-    providerRequestTransport?: IProviderRequestTransport;
-    onConstruct?: ({
-      emit,
-    }: {
-      emit: (event: string, ...args: unknown[]) => void;
-    }) => void;
-  }) {
+  }:
+    | {
+        backgroundMessenger?: IMessenger;
+        providerRequestTransport?: IProviderRequestTransport;
+        onConstruct?: ({
+          emit,
+        }: {
+          emit: (event: string, ...args: unknown[]) => void;
+        }) => void;
+      }
+    | undefined = {}) {
     super();
     this.backgroundMessenger = backgroundMessenger;
     this.providerRequestTransport = providerRequestTransport;

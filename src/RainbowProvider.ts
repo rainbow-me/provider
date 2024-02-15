@@ -95,12 +95,17 @@ export class RainbowProvider extends EventEmitter {
     if (response.id !== id) return;
     if (response.error) throw response.error;
 
-    if (method === 'eth_requestAccounts') {
-      this.selectedAddress = response.result[0];
-      this.connected = true;
-    } else if (method === 'eth_chainId') {
-      this.chainId = <ChainIdHex>response.result;
-      this.networkVersion = parseInt(this.chainId, 16).toString();
+    switch (method) {
+      case 'eth_requestAccounts':
+        this.selectedAddress = response.result[0];
+        this.connected = true;
+        break;
+      case 'eth_chainId':
+        this.chainId = <ChainIdHex>response.result;
+        this.networkVersion = parseInt(this.chainId, 16).toString();
+        break;
+      default:
+        break;
     }
 
     return response.result;

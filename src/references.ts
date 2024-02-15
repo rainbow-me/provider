@@ -152,7 +152,7 @@ export interface Ethereum {
 
 export type CallbackOptions = {
   /** The sender of the message. */
-  sender: chrome.runtime.MessageSender;
+  sender: IMessenger;
   /** The topic provided. */
   topic: string;
   /** An optional scoped identifier. */
@@ -188,8 +188,25 @@ export interface IMessenger {
   ) => () => void;
 }
 
-// IProviderRequestTransport.ts
+export type ProviderRequestPayload = RequestArguments & {
+  id: number;
+  meta?: CallbackOptions;
+};
+type ProviderResponse = RequestResponse;
+
 export interface IProviderRequestTransport {
-  send(request: RequestArguments, context?: unknown): Promise<RequestResponse>;
-  // ... additional methods and properties as needed
+  send(
+    payload: ProviderRequestPayload,
+    {
+      id,
+    }: {
+      id: number;
+    },
+  ): Promise<ProviderResponse>;
+  reply(
+    callback: (
+      payload: ProviderRequestPayload,
+      callbackOptions: CallbackOptions,
+    ) => Promise<ProviderResponse>,
+  ): Promise<void>;
 }

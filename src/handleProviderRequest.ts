@@ -210,7 +210,21 @@ export const handleProviderRequest = ({
           }
         }
         case 'wallet_switchEthereumChain':
-        case 'eth_requestAccounts':
+          break;
+        case 'eth_requestAccounts': {
+          if (activeSession) {
+            response = [activeSession.address?.toLowerCase()];
+            break;
+          }
+          const { address } = (await messengerProviderRequest({
+            method,
+            id,
+            params,
+            meta,
+          })) as { address: Address; chainId: number };
+          response = [address?.toLowerCase()];
+          break;
+        }
         case 'personal_ecRecover':
         default:
       }

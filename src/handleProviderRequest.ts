@@ -8,6 +8,7 @@ import {
 import { toHex } from './utils/hex';
 import { getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
+import { isAddress } from '@ethersproject/address';
 
 export type ActiveSession = { address: Address; chainId: number } | null;
 
@@ -15,16 +16,16 @@ export const handleProviderRequest = ({
   providerRequestTransport,
   getProvider,
   getActiveSession,
+  messengerProviderRequest,
 }: {
   popupMessenger: IMessenger;
   inpageMessenger: IMessenger;
   providerRequestTransport: IProviderRequestTransport;
-  getProvider: (options: { chainId?: number }) => Provider;
-  getActiveSession: ({ host }: { host: string }) => ActiveSession;
   messengerProviderRequest: (
-    messenger: IMessenger,
     request: ProviderRequestPayload,
   ) => Promise<object>;
+  getProvider: (options: { chainId?: number }) => Provider;
+  getActiveSession: ({ host }: { host: string }) => ActiveSession;
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {
@@ -123,7 +124,38 @@ export const handleProviderRequest = ({
         case 'personal_sign':
         case 'eth_signTypedData':
         case 'eth_signTypedData_v3':
-        case 'eth_signTypedData_v4':
+        case 'eth_signTypedData_v4': {
+          // If we need to validate the input before showing the UI, it should go here.
+          if (method === 'eth_signTypedData_v4') {
+            // we don't trust the params order
+            let dataParam = params?.[1];
+            if (!isAddress(params?.[0] as Address)) {
+              dataParam = params?.[0];
+            }
+
+            const data =
+              typeof dataParam === 'string' ? JSON.parse(dataParam) : dataParam;
+
+            const {
+              domain: { chainId },
+            } = data as { domain: { chainId: string } };
+
+            if (
+              chainId !== undefined &&
+              Number(chainId) !== Number(activeSession?.chainId)
+            ) {
+              throw new Error('ChainId mismatch');
+            }
+          }
+
+          response = await messengerProviderRequest({
+            method,
+            id,
+            params,
+            meta,
+          });
+          break;
+        }
         case 'wallet_addEthereumChain':
         case 'wallet_watchAsset':
         case 'wallet_switchEthereumChain':

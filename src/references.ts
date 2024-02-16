@@ -150,9 +150,27 @@ export interface Ethereum {
   }): Promise<null>;
 }
 
+export interface Tab {
+  /**
+   * Optional.
+   * The title of the tab. This property is only present if the extension's manifest includes the "tabs" permission.
+   */
+  title?: string | undefined;
+}
+
+export interface IMessageSender {
+  /**
+   * The URL of the page or frame that opened the connection. If the sender is in an iframe, it will be iframe's URL not the URL of the page which hosts it.
+   * @since Chrome 28.
+   */
+  url?: string | undefined;
+  /** The tabs.Tab which opened the connection, if any. This property will only be present when the connection was opened from a tab (including content scripts), and only if the receiver is an extension, not an app. */
+  tab?: Tab | undefined;
+}
+
 export type CallbackOptions = {
   /** The sender of the message. */
-  sender: IMessenger;
+  sender: IMessageSender;
   /** The topic provided. */
   topic: string;
   /** An optional scoped identifier. */

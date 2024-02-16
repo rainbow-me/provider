@@ -6,7 +6,7 @@ import {
   ProviderRequestPayload,
 } from './references';
 import { toHex } from './utils/hex';
-import { getDappHost, isValidUrl } from './utils/apps';
+import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { isAddress } from '@ethersproject/address';
 
@@ -14,6 +14,7 @@ export type ActiveSession = { address: Address; chainId: number } | null;
 
 export const handleProviderRequest = ({
   providerRequestTransport,
+  featureFlags,
   getProvider,
   getActiveSession,
   messengerProviderRequest,
@@ -21,6 +22,7 @@ export const handleProviderRequest = ({
   popupMessenger: IMessenger;
   inpageMessenger: IMessenger;
   providerRequestTransport: IProviderRequestTransport;
+  featureFlags: { custom_rpc: boolean };
   messengerProviderRequest: (
     request: ProviderRequestPayload,
   ) => Promise<object>;
@@ -157,7 +159,56 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_addEthereumChain':
-        case 'wallet_watchAsset':
+          break;
+        case 'wallet_watchAsset': {
+          if (!featureFlags.custom_rpc) {
+            throw new Error('Method not supported');
+          } else {
+            const {
+              type,
+              options: { address, symbol, decimals },
+            } = params as unknown as {
+              type: string;
+              options: {
+                address: Address;
+                symbol?: string;
+                decimals?: number;
+              };
+            };
+
+            if (type !== 'ERC20') {
+              throw new Error('Method supported only for ERC20');
+            }
+
+            if (!address) {
+              throw new Error('Address is required');
+            }
+
+            let chainId = null;
+            if (activeSession) {
+              chainId = activeSession?.chainId;
+            } else {
+              chainId = deriveChainIdByHostname(host);
+            }
+
+            response = await messengerProviderRequest({
+              method,
+              id,
+              params: [
+                {
+                  address,
+                  symbol,
+                  decimals,
+                  chainId,
+                },
+              ],
+              meta,
+            });
+            // PER EIP - true if the token was added, false otherwise.
+            response = !!response;
+            break;
+          }
+        }
         case 'wallet_switchEthereumChain':
         case 'eth_requestAccounts':
         case 'personal_ecRecover':

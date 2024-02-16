@@ -20,7 +20,7 @@ import { isAddress } from '@ethersproject/address';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 import { isHexString } from '@ethersproject/bytes';
 import { isHexPrefixed } from '@ethereumjs/util';
-import { Chain } from './utils/chains';
+import { AddEthereumChainProposedChain, Chain } from './utils/chains';
 
 export const handleProviderRequest = ({
   featureFlags,
@@ -43,7 +43,7 @@ export const handleProviderRequest = ({
   messengerProviderRequest: (
     request: ProviderRequestPayload,
   ) => Promise<object>;
-  onAddEthereumChain: (chainId: number) => void;
+  onAddEthereumChain: (proposedChain: AddEthereumChainProposedChain) => void;
   onSwitchEthereumChainNotSupported: () => void;
   onSwitchEthereumChainSupported: () => void;
 }) =>
@@ -177,18 +177,7 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_addEthereumChain': {
-          const proposedChain = params?.[0] as {
-            chainId: string;
-            rpcUrls: string[];
-            chainName: string;
-            iconUrls: string[];
-            nativeCurrency: {
-              name: string;
-              symbol: string;
-              decimals: number;
-            };
-            blockExplorerUrls: string[];
-          };
+          const proposedChain = params?.[0] as AddEthereumChainProposedChain;
           const proposedChainId = Number(proposedChain.chainId);
 
           if (!featureFlags.custom_rpc) {
@@ -248,7 +237,7 @@ export const handleProviderRequest = ({
                 `Expected null or array with at least one valid string HTTPS URL 'blockExplorerUrl'. Received: ${blockExplorerUrl}`,
               );
             }
-            onAddEthereumChain(proposedChainId);
+            const response = onAddEthereumChain(proposedChain);
 
             // PER EIP - return null if the network was added otherwise throw
             if (response !== null) {

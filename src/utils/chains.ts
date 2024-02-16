@@ -41,6 +41,19 @@ export type Chain = {
   testnet?: boolean;
 };
 
+export type AddEthereumChainProposedChain = {
+  chainId: string;
+  rpcUrls: string[];
+  chainName: string;
+  iconUrls: string[];
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  blockExplorerUrls: string[];
+};
+
 export enum ChainId {
   arbitrum = chain.arbitrum.id,
   arbitrumNova = chain.arbitrumNova.id,

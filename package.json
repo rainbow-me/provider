@@ -23,6 +23,7 @@
     "@ethersproject/address": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",
+    "@metamask/eth-sig-util": "^7.0.1",
     "eventemitter3": "^5.0.1",
     "viem": "^2.7.9"
   }

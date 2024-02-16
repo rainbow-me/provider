@@ -9,6 +9,7 @@ import { toHex } from './utils/hex';
 import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { isAddress } from '@ethersproject/address';
+import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 
 export type ActiveSession = { address: Address; chainId: number } | null;
 
@@ -226,6 +227,11 @@ export const handleProviderRequest = ({
           break;
         }
         case 'personal_ecRecover':
+          response = recoverPersonalSignature({
+            data: params?.[0] as string,
+            signature: params?.[1] as string,
+          });
+          break;
         default:
       }
       return { id, result: response };

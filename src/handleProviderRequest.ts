@@ -14,12 +14,20 @@ import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { isAddress } from '@ethersproject/address';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
+import { isHexString } from '@ethersproject/bytes';
+import { isHexPrefixed } from '@ethereumjs/util';
+import { Chain } from './utils/chains';
 
 export type ActiveSession = { address: Address; chainId: number } | null;
 
 export const handleProviderRequest = ({
   providerRequestTransport,
   featureFlags,
+  isSupportedChain,
+  getChain,
+  onSwitchEthereumChainNotSupported,
+  onSwitchEthereumChainSupported,
+  onAddEthereumChain,
   getProvider,
   getActiveSession,
   messengerProviderRequest,
@@ -28,11 +36,16 @@ export const handleProviderRequest = ({
   inpageMessenger: IMessenger;
   providerRequestTransport: IProviderRequestTransport;
   featureFlags: { custom_rpc: boolean };
+  getActiveSession: ({ host }: { host: string }) => ActiveSession;
   messengerProviderRequest: (
     request: ProviderRequestPayload,
   ) => Promise<object>;
   getProvider: (options: { chainId?: number }) => Provider;
-  getActiveSession: ({ host }: { host: string }) => ActiveSession;
+  onSwitchEthereumChainNotSupported: () => void;
+  onSwitchEthereumChainSupported: () => void;
+  onAddEthereumChain: (chainId: number) => void;
+  isSupportedChain: (chainId: number) => boolean;
+  getChain: (chainId: number) => Chain;
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {
@@ -163,8 +176,101 @@ export const handleProviderRequest = ({
           });
           break;
         }
-        case 'wallet_addEthereumChain':
+        case 'wallet_addEthereumChain': {
+          const proposedChain = params?.[0] as {
+            chainId: string;
+            rpcUrls: string[];
+            chainName: string;
+            iconUrls: string[];
+            nativeCurrency: {
+              name: string;
+              symbol: string;
+              decimals: number;
+            };
+            blockExplorerUrls: string[];
+          };
+          const proposedChainId = Number(proposedChain.chainId);
+
+          if (!featureFlags.custom_rpc) {
+            const supportedChain = isSupportedChain?.(proposedChainId);
+            if (!supportedChain) throw new Error('Chain Id not supported');
+          } else {
+            const {
+              chainId,
+              rpcUrls: [rpcUrl],
+              nativeCurrency: { name, symbol, decimals },
+              blockExplorerUrls: [blockExplorerUrl],
+            } = proposedChain;
+
+            // Validate chain Id
+            if (!isHexString(chainId) || !isHexPrefixed(chainId)) {
+              throw new Error(
+                `Expected 0x-prefixed, unpadded, non-zero hexadecimal string "chainId". Received: ${chainId}`,
+              );
+            } else if (Number(chainId) > Number.MAX_SAFE_INTEGER) {
+              throw new Error(
+                `Invalid chain ID "${chainId}": numerical value greater than max safe value. Received: ${chainId}`,
+              );
+              // Validate symbol and name
+            } else if (!rpcUrl) {
+              throw new Error(
+                `Expected non-empty array[string] "rpcUrls". Received: ${rpcUrl}`,
+              );
+            } else if (!name || !symbol) {
+              throw new Error(
+                'Expected non-empty string "nativeCurrency.name", "nativeCurrency.symbol"',
+              );
+              // Validarte decimals
+            } else if (
+              !Number.isInteger(decimals) ||
+              decimals < 0 ||
+              decimals > 36
+            ) {
+              throw new Error(
+                `Expected non-negative integer "nativeCurrency.decimals" less than 37. Received: ${decimals}`,
+              );
+              // Validate symbol length
+            } else if (symbol.length < 2 || symbol.length > 6) {
+              throw new Error(
+                `Expected 2-6 character string 'nativeCurrency.symbol'. Received: ${symbol}`,
+              );
+              // Validate symbol against existing chains
+            } else if (isSupportedChain?.(Number(chainId))) {
+              const knownChain = getChain?.(Number(chainId));
+              if (knownChain?.nativeCurrency.symbol !== symbol) {
+                throw new Error(
+                  `nativeCurrency.symbol does not match currency symbol for a network the user already has added with the same chainId. Received: ${symbol}`,
+                );
+              }
+              // Validate blockExplorerUrl
+            } else if (!blockExplorerUrl) {
+              throw new Error(
+                `Expected null or array with at least one valid string HTTPS URL 'blockExplorerUrl'. Received: ${blockExplorerUrl}`,
+              );
+            }
+            onAddEthereumChain(proposedChainId);
+
+            // PER EIP - return null if the network was added otherwise throw
+            if (response !== null) {
+              throw new Error('User rejected the request.');
+            }
+          }
           break;
+        }
+        case 'wallet_switchEthereumChain': {
+          const proposedChainId = Number(
+            (params?.[0] as { chainId: number })?.chainId,
+          );
+          const supportedChainId = isSupportedChain?.(Number(proposedChainId));
+          if (!supportedChainId || !activeSession) {
+            onSwitchEthereumChainNotSupported?.();
+            throw new Error('Chain Id not supported');
+          } else {
+            onSwitchEthereumChainSupported?.();
+          }
+          response = null;
+          break;
+        }
         case 'wallet_watchAsset': {
           if (!featureFlags.custom_rpc) {
             throw new Error('Method not supported');
@@ -214,8 +320,6 @@ export const handleProviderRequest = ({
             break;
           }
         }
-        case 'wallet_switchEthereumChain':
-          break;
         case 'eth_requestAccounts': {
           if (activeSession) {
             response = [activeSession.address?.toLowerCase()];

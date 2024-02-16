@@ -19,9 +19,11 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@ethereumjs/util": "^9.0.2",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/address": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",
+    "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",
     "@metamask/eth-sig-util": "^7.0.1",
     "eventemitter3": "^5.0.1",

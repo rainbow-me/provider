@@ -1,4 +1,7 @@
+import { Address } from '../references';
 import { ChainId } from './chains';
+
+export type ActiveSession = { address: Address; chainId: number } | null;
 
 export const isValidUrl = (url: string) => {
   try {

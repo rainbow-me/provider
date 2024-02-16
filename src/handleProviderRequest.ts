@@ -5,12 +5,16 @@ import {
 } from '@ethersproject/providers';
 import {
   Address,
-  IMessenger,
   IProviderRequestTransport,
   ProviderRequestPayload,
 } from './references';
 import { toHex } from './utils/hex';
-import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
+import {
+  ActiveSession,
+  deriveChainIdByHostname,
+  getDappHost,
+  isValidUrl,
+} from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { isAddress } from '@ethersproject/address';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
@@ -18,34 +22,30 @@ import { isHexString } from '@ethersproject/bytes';
 import { isHexPrefixed } from '@ethereumjs/util';
 import { Chain } from './utils/chains';
 
-export type ActiveSession = { address: Address; chainId: number } | null;
-
 export const handleProviderRequest = ({
-  providerRequestTransport,
   featureFlags,
+  providerRequestTransport,
   isSupportedChain,
+  getActiveSession,
   getChain,
+  getProvider,
+  messengerProviderRequest,
+  onAddEthereumChain,
   onSwitchEthereumChainNotSupported,
   onSwitchEthereumChainSupported,
-  onAddEthereumChain,
-  getProvider,
-  getActiveSession,
-  messengerProviderRequest,
 }: {
-  popupMessenger: IMessenger;
-  inpageMessenger: IMessenger;
-  providerRequestTransport: IProviderRequestTransport;
   featureFlags: { custom_rpc: boolean };
+  providerRequestTransport: IProviderRequestTransport;
+  isSupportedChain: (chainId: number) => boolean;
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
+  getChain: (chainId: number) => Chain;
+  getProvider: (options: { chainId?: number }) => Provider;
   messengerProviderRequest: (
     request: ProviderRequestPayload,
   ) => Promise<object>;
-  getProvider: (options: { chainId?: number }) => Provider;
+  onAddEthereumChain: (chainId: number) => void;
   onSwitchEthereumChainNotSupported: () => void;
   onSwitchEthereumChainSupported: () => void;
-  onAddEthereumChain: (chainId: number) => void;
-  isSupportedChain: (chainId: number) => boolean;
-  getChain: (chainId: number) => Chain;
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {

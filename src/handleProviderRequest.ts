@@ -7,6 +7,7 @@ import {
 } from './references';
 import { toHex } from './utils/hex';
 import { getDappHost, isValidUrl } from './utils/apps';
+import { normalizeTransactionResponsePayload } from './utils/ethereum';
 
 export type ActiveSession = { address: Address; chainId: number } | null;
 
@@ -34,9 +35,22 @@ export const handleProviderRequest = ({
       let response = null;
 
       switch (method) {
-        case 'eth_chainId':
-        case 'eth_coinbase':
-        case 'eth_accounts':
+        case 'eth_chainId': {
+          response = activeSession
+            ? toHex(String(activeSession.chainId))
+            : '0x1';
+          break;
+        }
+        case 'eth_coinbase': {
+          response = activeSession?.address?.toLowerCase() || '';
+          break;
+        }
+        case 'eth_accounts': {
+          response = activeSession
+            ? [activeSession.address?.toLowerCase()]
+            : [];
+          break;
+        }
         case 'eth_blockNumber': {
           const provider = getProvider({ chainId: activeSession?.chainId });
           const blockNumber = await provider.getBlockNumber();
@@ -54,15 +68,17 @@ export const handleProviderRequest = ({
           const transaction = await provider.getTransaction(
             params?.[0] as string,
           );
+          const normalizedTransaction =
+            normalizeTransactionResponsePayload(transaction);
           const {
             gasLimit,
             gasPrice,
             maxFeePerGas,
             maxPriorityFeePerGas,
             value,
-          } = transaction;
+          } = normalizedTransaction;
           response = {
-            ...transaction,
+            ...normalizedTransaction,
             gasLimit: toHex(gasLimit.toString()),
             gasPrice: gasPrice ? toHex(gasPrice.toString()) : undefined,
             maxFeePerGas: maxFeePerGas

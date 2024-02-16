@@ -44,8 +44,12 @@ export const handleProviderRequest = ({
     request: ProviderRequestPayload,
   ) => Promise<object>;
   onAddEthereumChain: (proposedChain: AddEthereumChainProposedChain) => void;
-  onSwitchEthereumChainNotSupported: () => void;
-  onSwitchEthereumChainSupported: () => void;
+  onSwitchEthereumChainNotSupported: (
+    proposedChain: AddEthereumChainProposedChain,
+  ) => void;
+  onSwitchEthereumChainSupported: (
+    proposedChain: AddEthereumChainProposedChain,
+  ) => void;
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {
@@ -247,15 +251,13 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_switchEthereumChain': {
-          const proposedChainId = Number(
-            (params?.[0] as { chainId: number })?.chainId,
-          );
-          const supportedChainId = isSupportedChain?.(Number(proposedChainId));
+          const proposedChain = params?.[0] as AddEthereumChainProposedChain;
+          const supportedChainId = isSupportedChain?.(Number(proposedChain));
           if (!supportedChainId || !activeSession) {
-            onSwitchEthereumChainNotSupported?.();
+            onSwitchEthereumChainNotSupported?.(proposedChain);
             throw new Error('Chain Id not supported');
           } else {
-            onSwitchEthereumChainSupported?.();
+            onSwitchEthereumChainSupported?.(proposedChain);
           }
           response = null;
           break;

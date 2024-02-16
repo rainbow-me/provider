@@ -1,4 +1,8 @@
-import { Provider, TransactionRequest } from '@ethersproject/providers';
+import {
+  Provider,
+  StaticJsonRpcProvider,
+  TransactionRequest,
+} from '@ethersproject/providers';
 import {
   Address,
   IMessenger,
@@ -232,7 +236,22 @@ export const handleProviderRequest = ({
             signature: params?.[1] as string,
           });
           break;
-        default:
+        default: {
+          try {
+            if (method?.substring(0, 7) === 'wallet_') {
+              // Generic error that will be hanlded correctly in the catch
+              throw new Error('next');
+            }
+            // Let's try to fwd the request to the provider
+            const provider = getProvider({
+              chainId: activeSession?.chainId,
+            }) as StaticJsonRpcProvider;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            response = await provider.send(method, params as any[]);
+          } catch (e) {
+            throw new Error('Method not supported');
+          }
+        }
       }
       return { id, result: response };
     } catch (error) {

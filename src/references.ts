@@ -156,6 +156,11 @@ export interface Tab {
    * The title of the tab. This property is only present if the extension's manifest includes the "tabs" permission.
    */
   title?: string | undefined;
+  /**
+   * Optional.
+   * The ID of the tab. Tab IDs are unique within a browser session. Under some circumstances a Tab may not be assigned an ID, for example when querying foreign tabs using the sessions API, in which case a session ID may be present. Tab ID can also be set to chrome.tabs.TAB_ID_NONE for apps and devtools windows.
+   */
+  id?: number | undefined;
 }
 
 export interface IMessageSender {

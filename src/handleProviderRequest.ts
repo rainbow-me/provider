@@ -38,7 +38,7 @@ export const handleProviderRequest = ({
   providerRequestTransport: IProviderRequestTransport;
   isSupportedChain: (chainId: number) => boolean;
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
-  getChain: (chainId: number) => Chain;
+  getChain: (chainId: number) => Chain | undefined;
   getProvider: (options: { chainId?: number }) => Provider;
   messengerProviderRequest: (
     request: ProviderRequestPayload,
@@ -236,7 +236,7 @@ export const handleProviderRequest = ({
               );
               // Validate symbol against existing chains
             } else if (isSupportedChain?.(Number(chainId))) {
-              const knownChain = getChain?.(Number(chainId));
+              const knownChain = getChain(Number(chainId));
               if (knownChain?.nativeCurrency.symbol !== symbol) {
                 throw new Error(
                   `nativeCurrency.symbol does not match currency symbol for a network the user already has added with the same chainId. Received: ${symbol}`,

@@ -5,6 +5,7 @@ import {
 } from '@ethersproject/providers';
 import {
   Address,
+  CallbackOptions,
   IProviderRequestTransport,
   ProviderRequestPayload,
 } from './references';
@@ -23,8 +24,9 @@ import { isHexPrefixed } from '@ethereumjs/util';
 import { AddEthereumChainProposedChain, Chain } from './utils/chains';
 
 export const handleProviderRequest = ({
-  featureFlags,
   providerRequestTransport,
+  getFeatureFlags,
+  checkRateLimit,
   isSupportedChain,
   getActiveSession,
   getChain,
@@ -34,8 +36,17 @@ export const handleProviderRequest = ({
   onSwitchEthereumChainNotSupported,
   onSwitchEthereumChainSupported,
 }: {
-  featureFlags: { custom_rpc: boolean };
   providerRequestTransport: IProviderRequestTransport;
+  getFeatureFlags: () => { custom_rpc: boolean };
+  checkRateLimit: ({
+    id,
+    meta,
+    method,
+  }: {
+    id: number;
+    meta: CallbackOptions;
+    method: string;
+  }) => Promise<{ id: number; error: Error } | undefined>;
   isSupportedChain: (chainId: number) => boolean;
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
   getChain: (chainId: number) => Chain | undefined;
@@ -43,19 +54,39 @@ export const handleProviderRequest = ({
   messengerProviderRequest: (
     request: ProviderRequestPayload,
   ) => Promise<object>;
-  onAddEthereumChain: (proposedChain: AddEthereumChainProposedChain) => void;
-  onSwitchEthereumChainNotSupported: (
-    proposedChain: AddEthereumChainProposedChain,
-  ) => void;
-  onSwitchEthereumChainSupported: (
-    proposedChain: AddEthereumChainProposedChain,
-  ) => void;
+  onAddEthereumChain: ({
+    proposedChain,
+    callbackOptions,
+  }: {
+    proposedChain: AddEthereumChainProposedChain;
+    callbackOptions?: CallbackOptions;
+  }) => { chainAlreadyAdded: boolean };
+  onSwitchEthereumChainNotSupported: ({
+    proposedChain,
+    callbackOptions,
+  }: {
+    proposedChain: AddEthereumChainProposedChain;
+    callbackOptions?: CallbackOptions;
+  }) => void;
+  onSwitchEthereumChainSupported: ({
+    proposedChain,
+    callbackOptions,
+  }: {
+    proposedChain: AddEthereumChainProposedChain;
+    callbackOptions?: CallbackOptions;
+  }) => void;
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {
       const url = meta?.sender?.url || '';
       const host = (isValidUrl(url) && getDappHost(url)) || '';
       const activeSession = getActiveSession({ host });
+
+      const rateLimited = await checkRateLimit({ id, meta, method });
+
+      if (rateLimited) {
+        return rateLimited;
+      }
 
       let response = null;
 
@@ -183,7 +214,7 @@ export const handleProviderRequest = ({
         case 'wallet_addEthereumChain': {
           const proposedChain = params?.[0] as AddEthereumChainProposedChain;
           const proposedChainId = Number(proposedChain.chainId);
-
+          const featureFlags = getFeatureFlags();
           if (!featureFlags.custom_rpc) {
             const supportedChain = isSupportedChain?.(proposedChainId);
             if (!supportedChain) throw new Error('Chain Id not supported');
@@ -241,7 +272,19 @@ export const handleProviderRequest = ({
                 `Expected null or array with at least one valid string HTTPS URL 'blockExplorerUrl'. Received: ${blockExplorerUrl}`,
               );
             }
-            const response = onAddEthereumChain(proposedChain);
+            const { chainAlreadyAdded } = onAddEthereumChain({
+              proposedChain,
+              callbackOptions: meta,
+            });
+
+            if (!chainAlreadyAdded) {
+              response = await messengerProviderRequest({
+                method,
+                id,
+                params,
+                meta,
+              });
+            }
 
             // PER EIP - return null if the network was added otherwise throw
             if (response !== null) {
@@ -251,18 +294,30 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_switchEthereumChain': {
+          console.log('FROM PACKAGE wallet_switchEthereumChain: ', params);
           const proposedChain = params?.[0] as AddEthereumChainProposedChain;
-          const supportedChainId = isSupportedChain?.(Number(proposedChain));
+          console.log('FROM PACKAGE wallet_switchEthereumChain: ', params);
+          const supportedChainId = isSupportedChain?.(
+            Number(proposedChain.chainId),
+          );
           if (!supportedChainId || !activeSession) {
-            onSwitchEthereumChainNotSupported?.(proposedChain);
+            onSwitchEthereumChainNotSupported?.({
+              proposedChain,
+              callbackOptions: meta,
+            });
             throw new Error('Chain Id not supported');
           } else {
-            onSwitchEthereumChainSupported?.(proposedChain);
+            onSwitchEthereumChainSupported?.({
+              proposedChain,
+              callbackOptions: meta,
+            });
           }
           response = null;
           break;
         }
         case 'wallet_watchAsset': {
+          const featureFlags = getFeatureFlags();
+
           if (!featureFlags.custom_rpc) {
             throw new Error('Method not supported');
           } else {

@@ -294,9 +294,7 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_switchEthereumChain': {
-          console.log('FROM PACKAGE wallet_switchEthereumChain: ', params);
           const proposedChain = params?.[0] as AddEthereumChainProposedChain;
-          console.log('FROM PACKAGE wallet_switchEthereumChain: ', params);
           const supportedChainId = isSupportedChain?.(
             Number(proposedChain.chainId),
           );

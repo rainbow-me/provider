@@ -85,7 +85,7 @@ export const handleProviderRequest = ({
       const rateLimited = await checkRateLimit({ id, meta, method });
 
       if (rateLimited) {
-        return rateLimited;
+        return { id, error: <Error>new Error('Rate Limit Exceeded') };
       }
 
       let response = null;

@@ -92,9 +92,7 @@ export const handleProviderRequest = ({
 
       switch (method) {
         case 'eth_chainId': {
-          response = activeSession
-            ? toHex(String(activeSession.chainId))
-            : '0x1';
+          response = activeSession ? toHex(activeSession.chainId) : '0x1';
           break;
         }
         case 'eth_coinbase': {
@@ -110,13 +108,13 @@ export const handleProviderRequest = ({
         case 'eth_blockNumber': {
           const provider = getProvider({ chainId: activeSession?.chainId });
           const blockNumber = await provider.getBlockNumber();
-          response = toHex(String(blockNumber));
+          response = toHex(blockNumber);
           break;
         }
         case 'eth_getBalance': {
           const provider = getProvider({ chainId: activeSession?.chainId });
           const balance = await provider.getBalance(params?.[0] as string);
-          response = toHex(balance.toString());
+          response = toHex(balance);
           break;
         }
         case 'eth_getTransactionByHash': {
@@ -135,15 +133,13 @@ export const handleProviderRequest = ({
           } = normalizedTransaction;
           response = {
             ...normalizedTransaction,
-            gasLimit: toHex(gasLimit.toString()),
-            gasPrice: gasPrice ? toHex(gasPrice.toString()) : undefined,
-            maxFeePerGas: maxFeePerGas
-              ? toHex(maxFeePerGas.toString())
-              : undefined,
+            gasLimit: toHex(gasLimit),
+            gasPrice: gasPrice ? toHex(gasPrice) : undefined,
+            maxFeePerGas: maxFeePerGas ? toHex(maxFeePerGas) : undefined,
             maxPriorityFeePerGas: maxPriorityFeePerGas
-              ? toHex(maxPriorityFeePerGas.toString())
+              ? toHex(maxPriorityFeePerGas)
               : undefined,
-            value: toHex(value.toString()),
+            value: toHex(value),
           };
           break;
         }
@@ -157,13 +153,13 @@ export const handleProviderRequest = ({
           const gas = await provider.estimateGas(
             params?.[0] as TransactionRequest,
           );
-          response = toHex(gas.toString());
+          response = toHex(gas);
           break;
         }
         case 'eth_gasPrice': {
           const provider = getProvider({ chainId: activeSession?.chainId });
           const gasPrice = await provider.getGasPrice();
-          response = toHex(gasPrice.toString());
+          response = toHex(gasPrice);
           break;
         }
         case 'eth_getCode': {
@@ -244,7 +240,7 @@ export const handleProviderRequest = ({
               throw new Error(
                 'Expected non-empty string "nativeCurrency.name", "nativeCurrency.symbol"',
               );
-              // Validarte decimals
+              // Validate decimals
             } else if (
               !Number.isInteger(decimals) ||
               decimals < 0 ||

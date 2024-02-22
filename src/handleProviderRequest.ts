@@ -17,11 +17,9 @@ import {
   isValidUrl,
 } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
-import { isAddress } from '@ethersproject/address';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
-import { isHexString } from '@ethersproject/bytes';
-import { isHexPrefixed } from '@ethereumjs/util';
 import { AddEthereumChainProposedChain, Chain } from './utils/chains';
+import { isAddress, isHex } from 'viem';
 
 export const handleProviderRequest = ({
   providerRequestTransport,
@@ -223,7 +221,7 @@ export const handleProviderRequest = ({
             } = proposedChain;
 
             // Validate chain Id
-            if (!isHexString(chainId) || !isHexPrefixed(chainId)) {
+            if (!isHex(chainId)) {
               throw new Error(
                 `Expected 0x-prefixed, unpadded, non-zero hexadecimal string "chainId". Received: ${chainId}`,
               );

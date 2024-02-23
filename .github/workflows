@@ -1,0 +1,61 @@
+
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # INSTALL DEPS
+  install:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18.18.0"
+          cache: 'yarn'
+      - name: Install deps via Yarn
+        run: yarn
+      - name: Check for frozen lockfile
+        run: yarn check-lockfile
+
+  # TEST
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [install]
+    env:
+      DISPLAY: :0
+      VITEST_SEGFAULT_RETRY: 3
+    steps:
+      - name: Run tests
+        continue-on-error: true
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.18.0"
+          timeout_minutes: 25
+          max_attempts: 2
+          command:   yarn test
+ 
+  # LINT, TYPECHECK, AUDIT
+  ci-checks:
+    runs-on: ubuntu-latest
+    needs: [install]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18.18.0"
+      - name: Lint
+        run: yarn lint
+      - name: Audit CI
+        run:  yarn audit:ci
+      - name: Check types
+        run: yarn typecheck

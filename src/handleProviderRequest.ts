@@ -3,23 +3,19 @@ import {
   StaticJsonRpcProvider,
   TransactionRequest,
 } from '@ethersproject/providers';
+
+import { toHex } from './utils/hex';
+import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
+import { normalizeTransactionResponsePayload } from './utils/ethereum';
+import { recoverPersonalSignature } from '@metamask/eth-sig-util';
+import { AddEthereumChainProposedChain, Chain } from './references/chains';
+import { Address, isAddress, isHex } from 'viem';
 import {
-  Address,
   CallbackOptions,
   IProviderRequestTransport,
   ProviderRequestPayload,
-} from './references';
-import { toHex } from './utils/hex';
-import {
-  ActiveSession,
-  deriveChainIdByHostname,
-  getDappHost,
-  isValidUrl,
-} from './utils/apps';
-import { normalizeTransactionResponsePayload } from './utils/ethereum';
-import { recoverPersonalSignature } from '@metamask/eth-sig-util';
-import { AddEthereumChainProposedChain, Chain } from './utils/chains';
-import { isAddress, isHex } from 'viem';
+} from './references/messengers';
+import { ActiveSession } from './references/appSession';
 
 export const handleProviderRequest = ({
   providerRequestTransport,

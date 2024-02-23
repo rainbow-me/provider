@@ -4,7 +4,6 @@ import {
   TransactionRequest,
 } from '@ethersproject/providers';
 
-import { toHex } from './utils/hex';
 import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
@@ -16,6 +15,7 @@ import {
   ProviderRequestPayload,
 } from './references/messengers';
 import { ActiveSession } from './references/appSession';
+import { toHex } from './utils/hex';
 
 export const handleProviderRequest = ({
   providerRequestTransport,

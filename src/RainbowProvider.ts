@@ -1,13 +1,11 @@
 import { EventEmitter } from 'eventemitter3';
+import { ChainIdHex, Ethereum, RPCMethod } from './references/ethereum';
 import {
-  ChainIdHex,
-  Ethereum,
   IMessenger,
   IProviderRequestTransport,
-  RPCMethod,
   RequestArguments,
   RequestResponse,
-} from './references';
+} from './references/messengers';
 
 export class RainbowProvider extends EventEmitter {
   chainId: ChainIdHex = '0x1';

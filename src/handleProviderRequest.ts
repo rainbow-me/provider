@@ -277,8 +277,10 @@ export const handleProviderRequest = ({
             }
 
             // PER EIP - return null if the network was added otherwise throw
-            if (response !== null) {
+            if (!response) {
               throw new Error('User rejected the request.');
+            } else {
+              response = null
             }
           }
           break;

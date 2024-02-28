@@ -17,7 +17,6 @@ export class RainbowProvider extends EventEmitter {
   selectedAddress: string | undefined;
   providers: (RainbowProvider | Ethereum)[] | undefined = undefined;
 
-  #isUnlocked = true;
   requestId = 0;
 
   private backgroundMessenger?: IMessenger;

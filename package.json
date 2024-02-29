@@ -10,7 +10,8 @@
     "build": "tsc",
     "test": "vitest",
     "lint": "eslint --cache --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check-lockfile": "./scripts/check-lockfile.sh"
   },
   "module": "dist/index.js",
   "devDependencies": {

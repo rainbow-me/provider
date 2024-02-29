@@ -18,16 +18,17 @@ jobs:
         with:
           node-version: "18.18.0"
           cache: 'yarn'
-      - name: Download deps cache artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: node_modules.tar.gz
-      - name: Unzip node_modules
-        run: tar xzf node_modules.tar.gz
       - name: Install deps via Yarn
         run: yarn
       - name: Check for frozen lockfile
         run: yarn check-lockfile
+      - name: Zip node_modules
+        run: tar czf node_modules.tar.gz node_modules/
+      - name: Upload deps artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: node_modules.tar.gz
+          path: node_modules.tar.gz
 
   # TEST
   test:
@@ -38,6 +39,13 @@ jobs:
       DISPLAY: :0
       VITEST_SEGFAULT_RETRY: 3
     steps:
+      - uses: actions/checkout@v3
+      - name: Download deps cache artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: node_modules.tar.gz
+      - name: Unzip node_modules
+        run: tar xzf node_modules.tar.gz
       - name: Run tests
         continue-on-error: true
         uses: actions/setup-node@v3

@@ -872,7 +872,7 @@ asynckit@^0.4.0:
   resolved "https://registry.yarnpkg.com/asynckit/-/asynckit-0.4.0.tgz#c79ed97f7f34cb8f2ba1bc9790bcc366474b4b79"
   integrity sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==
 
-audit-ci@^6.6.1:
+audit-ci@6.6.1:
   version "6.6.1"
   resolved "https://registry.yarnpkg.com/audit-ci/-/audit-ci-6.6.1.tgz#7c53808f6f94adbe60baf1d7c24f53c626619453"
   integrity sha512-zqZEoYfEC4QwX5yBkDNa0h7YhZC63HWtKtP19BVq+RS0dxRBInfmHogxe4VUeOzoADQjuTLZUI7zp3Pjyl+a5g==

@@ -18,6 +18,12 @@ jobs:
         with:
           node-version: "18.18.0"
           cache: 'yarn'
+      - name: Download deps cache artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: node_modules.tar.gz
+      - name: Unzip node_modules
+        run: tar xzf node_modules.tar.gz
       - name: Install deps via Yarn
         run: yarn
       - name: Check for frozen lockfile
@@ -50,6 +56,12 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: "18.18.0"
+      - name: Download deps cache artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: node_modules.tar.gz
+      - name: Unzip node_modules
+        run: tar xzf node_modules.tar.gz
       - name: Lint
         run: yarn lint
       - name: Audit CI

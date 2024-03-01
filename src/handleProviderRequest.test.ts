@@ -7,7 +7,7 @@ import {
 } from './references/messengers';
 import { Address, isHex } from 'viem';
 import { mainnet, optimism } from 'viem/chains';
-import { getDefaultProvider } from '@ethersproject/providers';
+import { StaticJsonRpcProvider } from '@ethersproject/providers';
 
 const TESTMAR27_ETH_ADDRESS: Address =
   '0x5e087b61aad29559e31565079fcdabe384b44614';
@@ -48,7 +48,7 @@ describe('handleProviderRequest', () => {
     switch (chainId) {
       case 1:
       default:
-        return getDefaultProvider('mainnet');
+        return new StaticJsonRpcProvider('http://127.0.0.1:8545');
     }
   });
   const messengerProviderRequestMock = vi.fn(() => Promise.resolve({}));

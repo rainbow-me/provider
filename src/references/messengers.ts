@@ -61,7 +61,7 @@ export type ProviderRequestPayload = RequestArguments & {
   meta?: CallbackOptions;
 };
 
-type ProviderResponse = RequestResponse;
+export type ProviderResponse = RequestResponse;
 
 export interface IProviderRequestTransport {
   send(

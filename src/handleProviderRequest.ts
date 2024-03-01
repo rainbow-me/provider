@@ -72,15 +72,14 @@ export const handleProviderRequest = ({
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {
-      const url = meta?.sender?.url || '';
-      const host = (isValidUrl(url) && getDappHost(url)) || '';
-      const activeSession = getActiveSession({ host });
-
       const rateLimited = await checkRateLimit({ id, meta, method });
-
       if (rateLimited) {
         return { id, error: <Error>new Error('Rate Limit Exceeded') };
       }
+
+      const url = meta?.sender?.url || '';
+      const host = (isValidUrl(url) && getDappHost(url)) || '';
+      const activeSession = getActiveSession({ host });
 
       let response = null;
 
@@ -280,7 +279,7 @@ export const handleProviderRequest = ({
             if (!response) {
               throw new Error('User rejected the request.');
             } else {
-              response = null
+              response = null;
             }
           }
           break;

@@ -45,13 +45,8 @@ jobs:
           name: node_modules.tar.gz
       - name: Unzip node_modules
         run: tar xzf node_modules.tar.gz
-      - uses: actions/checkout@v3
-        with:
-            repository: 'rainbow-me/browser-extension-env'
-            token: ${{ secrets.DOTENV_GITHUB_ACCESS_TOKEN }}
-            path: tmp
-      - name: Copy dotenv
-        run: cat tmp/dotenv >> .env && rm -rf tmp
+      - name: Append GitHub Access Token to .env
+        run: echo "GITHUB_ACCESS_TOKEN=${{ secrets.ETH_MAINNET_RPC }}" >> .env
       - name: Run tests
         run: yarn test
  

@@ -47,8 +47,16 @@ jobs:
         run: tar xzf node_modules.tar.gz
       - name: Append GitHub Access Token to .env
         run: echo "ETH_MAINNET_RPC=${{ secrets.ETH_MAINNET_RPC }}" >> .env
+      - name: Install Anvil
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
       - name: Run tests
-        run: yarn test
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: yarn test
  
   # LINT, TYPECHECK, AUDIT
   ci-checks:

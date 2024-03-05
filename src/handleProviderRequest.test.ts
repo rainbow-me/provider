@@ -5,7 +5,7 @@ import {
   ProviderRequestPayload,
   RequestResponse,
 } from './references/messengers';
-import { Address, isHex } from 'viem';
+import { Address, isHex, toHex } from 'viem';
 import { mainnet, optimism } from 'viem/chains';
 import { StaticJsonRpcProvider } from '@ethersproject/providers';
 
@@ -114,12 +114,21 @@ describe('handleProviderRequest', () => {
           SIGN_SIGNATURE + 'eth_signTypedData_v4' + payload.params[0],
         );
       }
+      case 'wallet_addEthereumChain': {
+        return Promise.resolve(true);
+      }
+      case 'wallet_switchEthereumChain': {
+        return Promise.resolve(true);
+      }
+      case 'wallet_watchAsset': {
+        return Promise.resolve(true);
+      }
       default: {
         return Promise.resolve({});
       }
     }
   });
-  const onAddEthereumChainMock = vi.fn(() => ({ chainAlreadyAdded: true }));
+  const onAddEthereumChainMock = vi.fn(() => ({ chainAlreadyAdded: false }));
   const onSwitchEthereumChainNotSupportedMock = vi.fn(() => null);
   const onSwitchEthereumChainSupportedMock = vi.fn(() => null);
 
@@ -458,9 +467,73 @@ describe('handleProviderRequest', () => {
       },
       { id: 1 },
     );
-    console.log(response.result);
     expect(response.result).toBe(
       SIGN_SIGNATURE + 'eth_signTypedData_v4' + TYPED_MESSAGE,
     );
+  });
+
+  it('should call wallet_addEthereumChain correctly', async () => {
+    const response = await transport.send(
+      {
+        id: 1,
+        method: 'wallet_addEthereumChain',
+        params: [
+          {
+            blockExplorerUrls: [mainnet.blockExplorers.default.url],
+            chainId: toHex(mainnet.id),
+            chainName: mainnet.network,
+            nativeCurrency: mainnet.nativeCurrency,
+            rpcUrls: [mainnet.rpcUrls.default.http],
+          },
+          RAINBOWWALLET_ETH_ADDRESS,
+        ],
+        meta: {
+          sender: { url: 'https://dapp1.com' },
+          topic: 'providerRequest',
+        },
+      },
+      { id: 1 },
+    );
+    expect(response.result).toBeNull();
+  });
+
+  it('should call wallet_switchEthereumChain correctly', async () => {
+    const response = await transport.send(
+      {
+        id: 1,
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: toHex(mainnet.id) }],
+        meta: {
+          sender: { url: 'https://dapp1.com' },
+          topic: 'providerRequest',
+        },
+      },
+      { id: 1 },
+    );
+    expect(response.result).toBeNull();
+  });
+
+  it('should call wallet_watchAsset correctly', async () => {
+    const response = await transport.send(
+      {
+        id: 1,
+        method: 'wallet_watchAsset',
+        params: {
+          type: 'ERC20',
+          options: {
+            address: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
+            symbol: 'FOO',
+            decimals: 18,
+            image: 'https://foo.io/token-image.svg',
+          },
+        },
+        meta: {
+          sender: { url: 'https://dapp1.com' },
+          topic: 'providerRequest',
+        },
+      },
+      { id: 1 },
+    );
+    expect(response.result).toBeTruthy();
   });
 });

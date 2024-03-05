@@ -3,7 +3,7 @@ import { RPCMethod } from './ethereum';
 export type RequestArguments = {
   id?: number;
   method: RPCMethod;
-  params?: Array<unknown>;
+  params?: Array<unknown> | object;
 };
 
 export type RequestResponse =

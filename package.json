@@ -35,6 +35,7 @@
     "@ethersproject/abstract-provider": "5.7.0",
     "@ethersproject/bignumber": "5.7.0",
     "@ethersproject/providers": "5.7.2",
+    "@ethersproject/wallet": "^5.7.0",
     "@metamask/eth-sig-util": "7.0.1",
     "eventemitter3": "5.0.1",
     "viem": "1.21.4"

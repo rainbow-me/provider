@@ -5,16 +5,9 @@ import {
   ProviderRequestPayload,
   RequestResponse,
 } from './references/messengers';
-import { Address, isAddress, isHex } from 'viem';
+import { Address, isHex } from 'viem';
 import { mainnet, optimism } from 'viem/chains';
 import { StaticJsonRpcProvider } from '@ethersproject/providers';
-import { verifyMessage } from '@ethersproject/wallet';
-import {
-  MessageTypes,
-  SignTypedDataVersion,
-  TypedMessage,
-  recoverTypedSignature,
-} from '@metamask/eth-sig-util';
 
 const TESTMAR27_ETH_ADDRESS: Address =
   '0x5e087b61aad29559e31565079fcdabe384b44614';
@@ -24,7 +17,7 @@ const RAINBOWWALLET_ETH_TX_HASH =
   '0xfc621a4577ba3398adc0800400b2ba2c408ab76cdc1521dadbfc802dc93a8b37';
 const TX_HASH =
   '0x43cfbb52ec99192e96f34a42b37354cfabd6845403e9473e921030da9751d12d';
-const SIGN_SIGNATURE = '0x123456789'
+const SIGN_SIGNATURE = '0x123456789';
 
 const TYPED_MESSAGE = {
   domain: {
@@ -411,7 +404,9 @@ describe('handleProviderRequest', () => {
       },
       { id: 1 },
     );
-    expect(response.result).toBe(SIGN_SIGNATURE + 'personal_sign'+ 'personal_sign_message');
+    expect(response.result).toBe(
+      SIGN_SIGNATURE + 'personal_sign' + 'personal_sign_message',
+    );
   });
 
   it('should call eth_signTypedData correctly', async () => {
@@ -427,7 +422,9 @@ describe('handleProviderRequest', () => {
       },
       { id: 1 },
     );
-    expect(response.result).toBe(SIGN_SIGNATURE + 'eth_signTypedData'+ 'eth_signTypedData_message');
+    expect(response.result).toBe(
+      SIGN_SIGNATURE + 'eth_signTypedData' + 'eth_signTypedData_message',
+    );
   });
 
   it('should call eth_signTypedData_v3 correctly', async () => {
@@ -443,7 +440,9 @@ describe('handleProviderRequest', () => {
       },
       { id: 1 },
     );
-    expect(response.result).toBe(SIGN_SIGNATURE + 'eth_signTypedData_v3'+ 'eth_signTypedData_v3_message');
+    expect(response.result).toBe(
+      SIGN_SIGNATURE + 'eth_signTypedData_v3' + 'eth_signTypedData_v3_message',
+    );
   });
 
   it('should call eth_signTypedData_v4 correctly', async () => {
@@ -459,7 +458,9 @@ describe('handleProviderRequest', () => {
       },
       { id: 1 },
     );
-    console.log(response.result)
-    expect(response.result).toBe(SIGN_SIGNATURE + 'eth_signTypedData_v4'+ TYPED_MESSAGE);
+    console.log(response.result);
+    expect(response.result).toBe(
+      SIGN_SIGNATURE + 'eth_signTypedData_v4' + TYPED_MESSAGE,
+    );
   });
 });

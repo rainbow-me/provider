@@ -16,7 +16,6 @@
     "anvil": "ETH_MAINNET_RPC=$(grep ETH_MAINNET_RPC .env | cut -d '=' -f2) && anvil --fork-url $ETH_MAINNET_RPC",
     "anvil:kill": "lsof -i :8545|tail -n +2|awk '{print $2}'|xargs -r kill -s SIGINT"
   },
-  "type": "commonjs",
   "module": "dist/index.js",
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "6.20.0",

@@ -5,16 +5,12 @@ on:
   pull_request:
   merge_group:
   push:
-    branches: [main]
-  workflow_dispatch:
-
+    branches:
+      - main
 jobs:
   # INSTALL DEPS
   install:
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -25,6 +21,13 @@ jobs:
         run: yarn
       - name: Check for frozen lockfile
         run: yarn check-lockfile
+      - name: Zip node_modules
+        run: tar czf node_modules.tar.gz node_modules/
+      - name: Upload deps artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: node_modules.tar.gz
+          path: node_modules.tar.gz
 
   # TEST
   test:
@@ -35,14 +38,15 @@ jobs:
       DISPLAY: :0
       VITEST_SEGFAULT_RETRY: 3
     steps:
-      - name: Run tests
-        continue-on-error: true
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v3
+      - name: Download deps cache artifacts
+        uses: actions/download-artifact@v3
         with:
-          node-version: "18.18.0"
-          timeout_minutes: 25
-          max_attempts: 2
-          command:   yarn test
+          name: node_modules.tar.gz
+      - name: Unzip node_modules
+        run: tar xzf node_modules.tar.gz
+      - name: Run tests
+        run: yarn test
  
   # LINT, TYPECHECK, AUDIT
   ci-checks:
@@ -53,6 +57,12 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: "18.18.0"
+      - name: Download deps cache artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: node_modules.tar.gz
+      - name: Unzip node_modules
+        run: tar xzf node_modules.tar.gz
       - name: Lint
         run: yarn lint
       - name: Audit CI

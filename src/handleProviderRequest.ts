@@ -72,15 +72,14 @@ export const handleProviderRequest = ({
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {
-      const url = meta?.sender?.url || '';
-      const host = (isValidUrl(url) && getDappHost(url)) || '';
-      const activeSession = getActiveSession({ host });
-
       const rateLimited = await checkRateLimit({ id, meta, method });
-
       if (rateLimited) {
         return { id, error: <Error>new Error('Rate Limit Exceeded') };
       }
+
+      const url = meta?.sender?.url || '';
+      const host = (isValidUrl(url) && getDappHost(url)) || '';
+      const activeSession = getActiveSession({ host });
 
       let response = null;
 
@@ -106,16 +105,16 @@ export const handleProviderRequest = ({
           break;
         }
         case 'eth_getBalance': {
+          const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const balance = await provider.getBalance(params?.[0] as string);
+          const balance = await provider.getBalance(p?.[0] as string);
           response = toHex(balance);
           break;
         }
         case 'eth_getTransactionByHash': {
+          const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const transaction = await provider.getTransaction(
-            params?.[0] as string,
-          );
+          const transaction = await provider.getTransaction(p?.[0] as string);
           const normalizedTransaction =
             normalizeTransactionResponsePayload(transaction);
           const {
@@ -138,15 +137,15 @@ export const handleProviderRequest = ({
           break;
         }
         case 'eth_call': {
+          const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          response = await provider.call(params?.[0] as TransactionRequest);
+          response = await provider.call(p?.[0] as TransactionRequest);
           break;
         }
         case 'eth_estimateGas': {
+          const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const gas = await provider.estimateGas(
-            params?.[0] as TransactionRequest,
-          );
+          const gas = await provider.estimateGas(p?.[0] as TransactionRequest);
           response = toHex(gas);
           break;
         }
@@ -157,11 +156,9 @@ export const handleProviderRequest = ({
           break;
         }
         case 'eth_getCode': {
+          const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          response = await provider.getCode(
-            params?.[0] as string,
-            params?.[1] as string,
-          );
+          response = await provider.getCode(p?.[0] as string, p?.[1] as string);
           break;
         }
         case 'eth_sendTransaction':
@@ -171,11 +168,12 @@ export const handleProviderRequest = ({
         case 'eth_signTypedData_v3':
         case 'eth_signTypedData_v4': {
           // If we need to validate the input before showing the UI, it should go here.
+          const p = params as Array<unknown>;
           if (method === 'eth_signTypedData_v4') {
             // we don't trust the params order
-            let dataParam = params?.[1];
-            if (!isAddress(params?.[0] as Address)) {
-              dataParam = params?.[0];
+            let dataParam = p?.[1];
+            if (!isAddress(p?.[0] as Address)) {
+              dataParam = p?.[0];
             }
 
             const data =
@@ -202,7 +200,8 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_addEthereumChain': {
-          const proposedChain = params?.[0] as AddEthereumChainProposedChain;
+          const p = params as Array<unknown>;
+          const proposedChain = p?.[0] as AddEthereumChainProposedChain;
           const proposedChainId = Number(proposedChain.chainId);
           const featureFlags = getFeatureFlags();
           if (!featureFlags.custom_rpc) {
@@ -280,13 +279,14 @@ export const handleProviderRequest = ({
             if (!response) {
               throw new Error('User rejected the request.');
             } else {
-              response = null
+              response = null;
             }
           }
           break;
         }
         case 'wallet_switchEthereumChain': {
-          const proposedChain = params?.[0] as AddEthereumChainProposedChain;
+          const p = params as Array<unknown>;
+          const proposedChain = p?.[0] as AddEthereumChainProposedChain;
           const supportedChainId = isSupportedChain?.(
             Number(proposedChain.chainId),
           );
@@ -322,7 +322,6 @@ export const handleProviderRequest = ({
                 decimals?: number;
               };
             };
-
             if (type !== 'ERC20') {
               throw new Error('Method supported only for ERC20');
             }
@@ -370,12 +369,14 @@ export const handleProviderRequest = ({
           response = [address?.toLowerCase()];
           break;
         }
-        case 'personal_ecRecover':
+        case 'personal_ecRecover': {
+          const p = params as Array<unknown>;
           response = recoverPersonalSignature({
-            data: params?.[0] as string,
-            signature: params?.[1] as string,
+            data: p?.[0] as string,
+            signature: p?.[1] as string,
           });
           break;
+        }
         default: {
           try {
             if (method?.substring(0, 7) === 'wallet_') {

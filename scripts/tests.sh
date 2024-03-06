@@ -1,0 +1,29 @@
+#!/bin/bash
+ANVIL_PORT=8545
+
+# Launch anvil in the bg
+yarn anvil:kill
+yarn anvil --chain-id 1 &
+echo "Launching Anvil..."
+
+# Give it some time to boot
+interval=5
+until nc -z localhost $ANVIL_PORT; do
+  sleep $interval
+  interval=$((interval * 2))
+done
+echo "Anvil Launched..."
+
+# Run the tests and store the result
+echo "Running Tests..."
+yarn vitest --reporter=verbose --bail 1
+
+# Store exit code
+TEST_RESULT=$?
+
+# kill anvil
+echo "Cleaning Up..."
+yarn anvil:kill
+
+# return the result of the tests
+exit "$TEST_RESULT"

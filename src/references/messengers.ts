@@ -3,7 +3,7 @@ import { RPCMethod } from './ethereum';
 export type RequestArguments = {
   id?: number;
   method: RPCMethod;
-  params?: Array<unknown>;
+  params?: Array<unknown> | object;
 };
 
 export type RequestResponse =
@@ -61,7 +61,7 @@ export type ProviderRequestPayload = RequestArguments & {
   meta?: CallbackOptions;
 };
 
-type ProviderResponse = RequestResponse;
+export type ProviderResponse = RequestResponse;
 
 export interface IProviderRequestTransport {
   send(

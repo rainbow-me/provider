@@ -81,7 +81,7 @@ export const handleProviderRequest = ({
       const host = (isValidUrl(url) && getDappHost(url)) || '';
       const activeSession = getActiveSession({ host });
 
-      let response = null;
+      let response: unknown = null;
 
       switch (method) {
         case 'eth_chainId': {
@@ -330,7 +330,7 @@ export const handleProviderRequest = ({
               throw new Error('Address is required');
             }
 
-            let chainId = null;
+            let chainId: number | null = null;
             if (activeSession) {
               chainId = activeSession?.chainId;
             } else {

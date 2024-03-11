@@ -2,7 +2,7 @@
 export const errorCodes = {
   PARSE_ERROR: {
     code: -32700,
-    name: 'Parse error	',
+    name: 'Parse error',
   }, // Invalid JSON
   INVALID_REQUEST: {
     code: -32600,
@@ -18,7 +18,7 @@ export const errorCodes = {
   }, // Invalid method parameters
   INTERNAL_ERROR: {
     code: -32603,
-    name: 'Internal error	',
+    name: 'Internal error',
   }, // Internal JSON-RPC error
   INVALID_INPUT: {
     code: -32000,

@@ -4,6 +4,7 @@ import {
   IMessenger,
   IProviderRequestTransport,
   RequestArguments,
+  RequestError,
   RequestResponse,
 } from './references/messengers';
 
@@ -110,8 +111,28 @@ export class RainbowProvider extends EventEmitter {
 
   /** @deprecated – This method is deprecated in favor of `request`. */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async sendAsync(args: RequestArguments) {
-    return this.request(args);
+  async sendAsync(
+    args: RequestArguments,
+    callback: (error: RequestError | null, response: RequestResponse) => void,
+  ) {
+    try {
+      const result = await this.request(args);
+      callback(null, {
+        id: args.id!,
+        jsonrpc: '2.0',
+        result,
+      });
+    } catch (error: unknown) {
+      callback(error as Error, {
+        id: args.id!,
+        jsonrpc: '2.0',
+        error: {
+          code: (error as RequestError).code,
+          message: (error as RequestError).message,
+          name: (error as RequestError).name,
+        },
+      });
+    }
   }
 
   /** @deprecated – This method is deprecated in favor of `request`. */

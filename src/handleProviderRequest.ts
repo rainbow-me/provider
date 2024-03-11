@@ -13,9 +13,33 @@ import {
   CallbackOptions,
   IProviderRequestTransport,
   ProviderRequestPayload,
+  RequestError,
 } from './references/messengers';
 import { ActiveSession } from './references/appSession';
 import { toHex } from './utils/hex';
+import { errorCodes } from './references/errorCodes';
+
+const buildError = ({
+  id,
+  message,
+  errorCode,
+}: {
+  id: number;
+  errorCode: {
+    code: number;
+    name: string;
+  };
+  message?: string;
+}): { id: number; error: RequestError } => {
+  return {
+    id,
+    error: {
+      name: errorCode.name,
+      message,
+      code: errorCode.code,
+    },
+  };
+};
 
 export const handleProviderRequest = ({
   providerRequestTransport,
@@ -74,7 +98,11 @@ export const handleProviderRequest = ({
     try {
       const rateLimited = await checkRateLimit({ id, meta, method });
       if (rateLimited) {
-        return { id, error: <Error>new Error('Rate Limit Exceeded') };
+        return buildError({
+          id,
+          message: 'Rate Limit Exceeded',
+          errorCode: errorCodes.LIMIT_EXCEEDED,
+        });
       }
 
       const url = meta?.sender?.url || '';
@@ -187,7 +215,11 @@ export const handleProviderRequest = ({
               chainId !== undefined &&
               Number(chainId) !== Number(activeSession?.chainId)
             ) {
-              throw new Error('ChainId mismatch');
+              return buildError({
+                id,
+                message: 'Chain Id mismatch',
+                errorCode: errorCodes.INVALID_REQUEST,
+              });
             }
           }
 
@@ -206,7 +238,13 @@ export const handleProviderRequest = ({
           const featureFlags = getFeatureFlags();
           if (!featureFlags.custom_rpc) {
             const supportedChain = isSupportedChain?.(proposedChainId);
-            if (!supportedChain) throw new Error('Chain Id not supported');
+            if (!supportedChain) {
+              return buildError({
+                id,
+                message: 'Chain Id not supported',
+                errorCode: errorCodes.INVALID_REQUEST,
+              });
+            }
           } else {
             const {
               chainId,
@@ -217,49 +255,66 @@ export const handleProviderRequest = ({
 
             // Validate chain Id
             if (!isHex(chainId)) {
-              throw new Error(
-                `Expected 0x-prefixed, unpadded, non-zero hexadecimal string "chainId". Received: ${chainId}`,
-              );
+              return buildError({
+                id,
+                message: `Expected 0x-prefixed, unpadded, non-zero hexadecimal string "chainId". Received: ${chainId}`,
+                errorCode: errorCodes.INVALID_INPUT,
+              });
             } else if (Number(chainId) > Number.MAX_SAFE_INTEGER) {
-              throw new Error(
-                `Invalid chain ID "${chainId}": numerical value greater than max safe value. Received: ${chainId}`,
-              );
+              return buildError({
+                id,
+                message: `Invalid chain ID "${chainId}": numerical value greater than max safe value. Received: ${chainId}`,
+                errorCode: errorCodes.INVALID_INPUT,
+              });
               // Validate symbol and name
             } else if (!rpcUrl) {
-              throw new Error(
-                `Expected non-empty array[string] "rpcUrls". Received: ${rpcUrl}`,
-              );
+              return buildError({
+                id,
+                message: `Expected non-empty array[string] "rpcUrls". Received: ${rpcUrl}`,
+                errorCode: errorCodes.INVALID_INPUT,
+              });
             } else if (!name || !symbol) {
-              throw new Error(
-                'Expected non-empty string "nativeCurrency.name", "nativeCurrency.symbol"',
-              );
+              return buildError({
+                id,
+                message:
+                  'Expected non-empty string "nativeCurrency.name", "nativeCurrency.symbol"',
+                errorCode: errorCodes.INVALID_INPUT,
+              });
               // Validate decimals
             } else if (
               !Number.isInteger(decimals) ||
               decimals < 0 ||
               decimals > 36
             ) {
-              throw new Error(
-                `Expected non-negative integer "nativeCurrency.decimals" less than 37. Received: ${decimals}`,
-              );
+              return buildError({
+                id,
+                message: `Expected non-negative integer "nativeCurrency.decimals" less than 37. Received: ${decimals}`,
+                errorCode: errorCodes.INVALID_INPUT,
+              });
               // Validate symbol length
             } else if (symbol.length < 2 || symbol.length > 6) {
-              throw new Error(
-                `Expected 2-6 character string 'nativeCurrency.symbol'. Received: ${symbol}`,
-              );
+              return buildError({
+                id,
+                message: `Expected 2-6 character string 'nativeCurrency.symbol'. Received: ${symbol}`,
+                errorCode: errorCodes.INVALID_INPUT,
+              });
               // Validate symbol against existing chains
             } else if (isSupportedChain?.(Number(chainId))) {
               const knownChain = getChain(Number(chainId));
               if (knownChain?.nativeCurrency.symbol !== symbol) {
-                throw new Error(
-                  `nativeCurrency.symbol does not match currency symbol for a network the user already has added with the same chainId. Received: ${symbol}`,
-                );
+                return buildError({
+                  id,
+                  message: `nativeCurrency.symbol does not match currency symbol for a network the user already has added with the same chainId. Received: ${symbol}`,
+                  errorCode: errorCodes.INVALID_INPUT,
+                });
               }
               // Validate blockExplorerUrl
             } else if (!blockExplorerUrl) {
-              throw new Error(
-                `Expected null or array with at least one valid string HTTPS URL 'blockExplorerUrl'. Received: ${blockExplorerUrl}`,
-              );
+              return buildError({
+                id,
+                message: `Expected null or array with at least one valid string HTTPS URL 'blockExplorerUrl'. Received: ${blockExplorerUrl}`,
+                errorCode: errorCodes.INVALID_INPUT,
+              });
             }
             const { chainAlreadyAdded } = onAddEthereumChain({
               proposedChain,
@@ -277,7 +332,11 @@ export const handleProviderRequest = ({
 
             // PER EIP - return null if the network was added otherwise throw
             if (!response) {
-              throw new Error('User rejected the request.');
+              return buildError({
+                id,
+                message: 'User rejected the request.',
+                errorCode: errorCodes.TRANSACTION_REJECTED,
+              });
             } else {
               response = null;
             }
@@ -295,7 +354,11 @@ export const handleProviderRequest = ({
               proposedChain,
               callbackOptions: meta,
             });
-            throw new Error('Chain Id not supported');
+            return buildError({
+              id,
+              message: 'Chain Id not supported',
+              errorCode: errorCodes.INVALID_REQUEST,
+            });
           } else {
             onSwitchEthereumChainSupported?.({
               proposedChain,
@@ -323,11 +386,19 @@ export const handleProviderRequest = ({
               };
             };
             if (type !== 'ERC20') {
-              throw new Error('Method supported only for ERC20');
+              return buildError({
+                id,
+                message: 'Method supported only for ERC20',
+                errorCode: errorCodes.METHOD_NOT_SUPPORTED,
+              });
             }
 
             if (!address) {
-              throw new Error('Address is required');
+              return buildError({
+                id,
+                message: 'Address is required',
+                errorCode: errorCodes.INVALID_INPUT,
+              });
             }
 
             let chainId: number | null = null;
@@ -390,12 +461,20 @@ export const handleProviderRequest = ({
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             response = await provider.send(method, params as any[]);
           } catch (e) {
-            throw new Error('Method not supported');
+            return buildError({
+              id,
+              message: 'Method not supported',
+              errorCode: errorCodes.METHOD_NOT_SUPPORTED,
+            });
           }
         }
       }
       return { id, result: response };
     } catch (error) {
-      return { id, error: <Error>error };
+      return buildError({
+        id,
+        message: (error as Error).message,
+        errorCode: errorCodes.INTERNAL_ERROR,
+      });
     }
   });

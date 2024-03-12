@@ -6,15 +6,19 @@ export type RequestArguments = {
   params?: Array<unknown>;
 };
 
+export type RequestError = { name: string; message?: string; code?: number };
+
 export type RequestResponse =
   | {
       id: number;
-      error: Error;
+      error?: RequestError;
+      jsonrpc?: string;
       result?: never;
     }
   | {
       id: number;
-      error?: never;
+      error?: RequestError;
+      jsonrpc?: string;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result: any;
     };

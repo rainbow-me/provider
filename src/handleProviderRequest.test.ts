@@ -155,16 +155,18 @@ describe('handleProviderRequest', () => {
   });
 
   it('should rate limit requests', async () => {
-    checkRateLimitMock.mockImplementationOnce(() =>
-      Promise.resolve({ id: 1, error: new Error('Rate Limit Exceeded') }),
-    );
+    checkRateLimitMock.mockImplementationOnce(() => Promise.resolve(true));
     const response = await transport.send(
       { id: 1, method: 'eth_requestAccounts' },
       { id: 1 },
     );
     expect(response).toEqual({
       id: 1,
-      error: new Error('Rate Limit Exceeded'),
+      error: {
+        code: -32005,
+        message: 'Rate Limit Exceeded',
+        name: 'Limit exceeded',
+      },
     });
   });
 

@@ -11,13 +11,13 @@ describe('Utils hex', () => {
 
   it('converts a string to a hex string', () => {
     const stringInput = '456';
-    const expectedHex = '0x01c8';
+    const expectedHex = '0x1c8';
     expect(toHex(stringInput)).toBe(expectedHex);
   });
 
   it('converts a BigNumber to a hex string', () => {
     const bigNumberInput = BigNumber.from(789);
-    const expectedHex = '0x0315';
+    const expectedHex = '0x315';
     expect(toHex(bigNumberInput)).toBe(expectedHex);
   });
 });

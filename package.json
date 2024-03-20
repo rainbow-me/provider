@@ -1,12 +1,13 @@
 {
   "name": "@rainbow-me/provider",
-  "version": "0.0.8",
+  "version": "0.0.10",
   "main": "dist/index.js",
   "license": "MIT",
   "files": [
     "dist/**/*"
   ],
   "scripts": {
+    "prepare": "yarn build",
     "build": "tsc",
     "test": "./scripts/tests.sh",
     "lint": "eslint --cache --max-warnings 0",

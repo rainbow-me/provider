@@ -1,6 +1,6 @@
 {
   "name": "@rainbow-me/provider",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "main": "dist/index.js",
   "license": "MIT",
   "files": [

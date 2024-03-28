@@ -22,8 +22,6 @@ export type Chain = {
   id: number;
   /** Human-readable name */
   name: string;
-  /** Internal network name */
-  network: string;
   /** Currency used by chain */
   nativeCurrency: NativeCurrency;
   /** Collection of RPC endpoints */
@@ -44,7 +42,6 @@ export type Chain = {
 export type AddEthereumChainProposedChain = {
   chainId: string;
   rpcUrls: string[];
-  chainName: string;
   iconUrls: string[];
   nativeCurrency: {
     name: string;

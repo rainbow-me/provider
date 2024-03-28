@@ -483,7 +483,6 @@ describe('handleProviderRequest', () => {
           {
             blockExplorerUrls: [mainnet.blockExplorers.default.url],
             chainId: toHex(mainnet.id),
-            chainName: mainnet.network,
             nativeCurrency: mainnet.nativeCurrency,
             rpcUrls: [mainnet.rpcUrls.default.http],
           },

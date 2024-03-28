@@ -42,6 +42,7 @@ export type Chain = {
 export type AddEthereumChainProposedChain = {
   chainId: string;
   rpcUrls: string[];
+  chainName: string;
   iconUrls: string[];
   nativeCurrency: {
     name: string;

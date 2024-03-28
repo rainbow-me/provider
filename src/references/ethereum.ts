@@ -30,6 +30,7 @@ export type RPCMethod = keyof typeof rpcMethods | string;
 export type AddEthereumChainParameter = {
   /** A 0x-prefixed hexadecimal string */
   chainId: string;
+  chainName: string;
   nativeCurrency?: {
     name: string;
     /** 2-6 characters long */

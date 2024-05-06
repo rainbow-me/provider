@@ -349,7 +349,14 @@ export const handleProviderRequest = ({
           const supportedChainId = isSupportedChain?.(
             Number(proposedChain.chainId),
           );
-          if (!supportedChainId || !activeSession) {
+          if (!activeSession) {
+            (await messengerProviderRequest({
+              method: 'eth_requestAccounts',
+              id,
+              params,
+              meta,
+            })) as { address: Address; chainId: number };
+          } else if (!supportedChainId) {
             onSwitchEthereumChainNotSupported?.({
               proposedChain,
               callbackOptions: meta,

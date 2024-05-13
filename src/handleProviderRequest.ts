@@ -7,7 +7,7 @@ import {
 import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
-import { AddEthereumChainProposedChain, Chain } from './references/chains';
+import { AddEthereumChainProposedChain } from './references/chains';
 import { Address, isAddress, isHex } from 'viem';
 import {
   CallbackOptions,
@@ -18,6 +18,7 @@ import {
 import { ActiveSession } from './references/appSession';
 import { toHex } from './utils/hex';
 import { errorCodes } from './references/errorCodes';
+import { ChainNativeCurrency } from 'viem/_types/types/chain';
 
 const buildError = ({
   id,
@@ -47,7 +48,7 @@ export const handleProviderRequest = ({
   checkRateLimit,
   isSupportedChain,
   getActiveSession,
-  getChain,
+  getChainNativeCurrency,
   getProvider,
   messengerProviderRequest,
   onAddEthereumChain,
@@ -67,7 +68,7 @@ export const handleProviderRequest = ({
   }) => Promise<{ id: number; error: Error } | undefined>;
   isSupportedChain: (chainId: number) => boolean;
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
-  getChain: (chainId: number) => Chain | undefined;
+  getChainNativeCurrency: (chainId: number) => ChainNativeCurrency | undefined;
   getProvider: (options: { chainId?: number }) => Provider;
   messengerProviderRequest: (
     request: ProviderRequestPayload,
@@ -300,8 +301,10 @@ export const handleProviderRequest = ({
               });
               // Validate symbol against existing chains
             } else if (isSupportedChain?.(Number(chainId))) {
-              const knownChain = getChain(Number(chainId));
-              if (knownChain?.nativeCurrency.symbol !== symbol) {
+              const knownChainNativeCurrency = getChainNativeCurrency(
+                Number(chainId),
+              );
+              if (knownChainNativeCurrency?.symbol !== symbol) {
                 return buildError({
                   id,
                   message: `nativeCurrency.symbol does not match currency symbol for a network the user already has added with the same chainId. Received: ${symbol}`,

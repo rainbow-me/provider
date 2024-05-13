@@ -71,11 +71,11 @@ describe('handleProviderRequest', () => {
       }
     }
   });
-  const getChainMock = vi.fn((chainId: number) => {
+  const getChainNativeCurrencyMock = vi.fn((chainId: number) => {
     switch (chainId) {
       case 1:
       default:
-        return mainnet;
+        return mainnet.nativeCurrency;
     }
   });
   const getProviderMock = vi.fn(({ chainId }: { chainId?: number }) => {
@@ -145,7 +145,7 @@ describe('handleProviderRequest', () => {
       checkRateLimit: checkRateLimitMock,
       isSupportedChain: isSupportedChainMock,
       getActiveSession: getActiveSessionMock,
-      getChain: getChainMock,
+      getChainNativeCurrency: getChainNativeCurrencyMock,
       getProvider: getProviderMock,
       messengerProviderRequest: messengerProviderRequestMock,
       onAddEthereumChain: onAddEthereumChainMock,

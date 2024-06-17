@@ -20,6 +20,10 @@ import { toHex } from './utils/hex';
 import { errorCodes } from './references/errorCodes';
 import { ChainNativeCurrency } from 'viem/_types/types/chain';
 
+interface WalletPermissionsParams {
+  eth_accounts: object;
+}
+
 const buildError = ({
   id,
   message,
@@ -48,6 +52,7 @@ export const handleProviderRequest = ({
   checkRateLimit,
   isSupportedChain,
   getActiveSession,
+  removeAppSession,
   getChainNativeCurrency,
   getProvider,
   messengerProviderRequest,
@@ -68,6 +73,7 @@ export const handleProviderRequest = ({
   }) => Promise<{ id: number; error: Error } | undefined>;
   isSupportedChain: (chainId: number) => boolean;
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
+  removeAppSession?: ({ host }: { host: string }) => void;
   getChainNativeCurrency: (chainId: number) => ChainNativeCurrency | undefined;
   getProvider: (options: { chainId?: number }) => Provider;
   messengerProviderRequest: (
@@ -457,6 +463,16 @@ export const handleProviderRequest = ({
             signature: p?.[1] as string,
           });
           break;
+        }
+        case 'wallet_revokePermissions': {
+          if (
+            !!removeAppSession &&
+            (params?.[0] as WalletPermissionsParams)?.eth_accounts
+          ) {
+            removeAppSession?.({ host });
+            response = null;
+          }
+          throw new Error('next');
         }
         default: {
           try {

@@ -7,9 +7,10 @@ import {
   RequestError,
   RequestResponse,
 } from './references/messengers';
+import { toHex } from './utils/hex';
 
 export class RainbowProvider extends EventEmitter {
-  chainId: ChainIdHex = '0x1';
+  chainId: ChainIdHex | undefined;
   connected = false;
   isRainbow = true;
   isReady = true;
@@ -68,6 +69,12 @@ export class RainbowProvider extends EventEmitter {
 
   isConnected() {
     return this.connected;
+  }
+
+  async handleChainChanged(chainId: ChainIdHex) {
+    this.chainId = chainId;
+    this.networkVersion = parseInt(this.chainId, 16).toString();
+    this.emit('chainChanged', toHex(String(chainId)));
   }
 
   async request({

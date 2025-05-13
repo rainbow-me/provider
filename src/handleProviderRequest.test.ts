@@ -5,9 +5,8 @@ import {
   ProviderRequestPayload,
   RequestResponse,
 } from './references/messengers';
-import { Address, isHex, toHex } from 'viem';
+import { Address, createPublicClient, http, isHex, toHex } from 'viem';
 import { mainnet, optimism } from 'viem/chains';
-import { StaticJsonRpcProvider } from '@ethersproject/providers';
 
 const TESTMAR27_ETH_ADDRESS: Address =
   '0x5e087b61aad29559e31565079fcdabe384b44614';
@@ -82,7 +81,13 @@ describe('handleProviderRequest', () => {
     switch (chainId) {
       case 1:
       default:
-        return new StaticJsonRpcProvider('http://127.0.0.1:8545');
+        return createPublicClient({
+          chain: mainnet,
+          transport: http('http://127.0.0.1:8545'),
+          batch: {
+            multicall: true,
+          },
+        });
     }
   });
   const messengerProviderRequestMock = vi.fn((payload) => {
@@ -483,9 +488,9 @@ describe('handleProviderRequest', () => {
           {
             blockExplorerUrls: [mainnet.blockExplorers.default.url],
             chainId: toHex(mainnet.id),
-            chainName: mainnet.network,
+            chainName: mainnet.name,
             nativeCurrency: mainnet.nativeCurrency,
-            rpcUrls: [mainnet.rpcUrls.default.http],
+            rpcUrls: [mainnet.rpcUrls.default.http[0]],
           },
           RAINBOWWALLET_ETH_ADDRESS,
         ],
@@ -520,15 +525,17 @@ describe('handleProviderRequest', () => {
       {
         id: 1,
         method: 'wallet_watchAsset',
-        params: {
-          type: 'ERC20',
-          options: {
-            address: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
-            symbol: 'FOO',
-            decimals: 18,
-            image: 'https://foo.io/token-image.svg',
+        params: [
+          {
+            type: 'ERC20',
+            options: {
+              address: '0xb60e8dd61c5d32be8058bb8eb970870f07233155',
+              symbol: 'FOO',
+              decimals: 18,
+              image: 'https://foo.io/token-image.svg',
+            },
           },
-        },
+        ],
         meta: {
           sender: { url: 'https://dapp1.com' },
           topic: 'providerRequest',

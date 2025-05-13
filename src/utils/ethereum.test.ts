@@ -1,24 +1,31 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import type {
-  TransactionReceipt,
-  TransactionResponse,
-} from '@ethersproject/abstract-provider';
+import { TransactionLegacy } from 'viem';
 import { normalizeTransactionResponsePayload } from './ethereum';
-import { BigNumber } from '@ethersproject/bignumber';
 
 describe('Utils ethereum', () => {
-  const mockTransactionResponse: TransactionResponse = {
+  const mockTransactionResponse = {
     wait: async () => {
-      return {} as TransactionReceipt;
+      return {} as TransactionLegacy;
     },
-    hash: '',
-    confirmations: 0,
-    from: '',
+    hash: '0x',
+    from: '0x',
+    to: '0x',
     nonce: 0,
-    gasLimit: BigNumber.from(20000),
-    data: '',
-    value: BigNumber.from(1000000000000),
+    gas: 20000n,
+    input: '0x',
+    value: 1000000000000n,
     chainId: 0,
+    type: 'legacy' as const,
+    typeHex: '0x0',
+    blockHash: '0x',
+    blockNumber: 0,
+    transactionIndex: 0,
+    gasPrice: 1000000000n,
+    r: '0x',
+    s: '0x',
+    v: 0n,
+  } as unknown as TransactionLegacy & {
+    wait: () => Promise<TransactionLegacy>;
   };
 
   it('removes wait function on Firefox', () => {

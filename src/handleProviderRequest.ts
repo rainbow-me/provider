@@ -1,14 +1,19 @@
 import {
-  Provider,
-  StaticJsonRpcProvider,
+  Address,
+  PublicClient,
   TransactionRequest,
-} from '@ethersproject/providers';
+  toHex,
+  isAddress,
+  isHex,
+  BlockTag,
+  EstimateGasParameters,
+} from 'viem';
+import type { Chain } from 'viem';
 
 import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
-import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 import { AddEthereumChainProposedChain } from './references/chains';
-import { Address, isAddress, isHex } from 'viem';
+
 import {
   CallbackOptions,
   IProviderRequestTransport,
@@ -16,9 +21,9 @@ import {
   RequestError,
 } from './references/messengers';
 import { ActiveSession } from './references/appSession';
-import { toHex } from './utils/hex';
 import { errorCodes } from './references/errorCodes';
-import { ChainNativeCurrency } from 'viem/_types/types/chain';
+
+type ChainNativeCurrency = Chain['nativeCurrency'];
 
 interface WalletPermissionsParams {
   eth_accounts: object;
@@ -75,7 +80,7 @@ export const handleProviderRequest = ({
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
   removeAppSession?: ({ host }: { host: string }) => void;
   getChainNativeCurrency: (chainId: number) => ChainNativeCurrency | undefined;
-  getProvider: (options: { chainId?: number }) => Provider;
+  getProvider: (options: { chainId?: number }) => PublicClient;
   messengerProviderRequest: (
     request: ProviderRequestPayload,
   ) => Promise<object>;
@@ -142,32 +147,45 @@ export const handleProviderRequest = ({
         case 'eth_getBalance': {
           const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const balance = await provider.getBalance(p?.[0] as string);
+          const balance = await provider.getBalance({
+            address: p?.[0] as Address,
+            blockTag: p?.[1] as BlockTag,
+          });
           response = toHex(balance);
           break;
         }
         case 'eth_getTransactionByHash': {
           const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const transaction = await provider.getTransaction(p?.[0] as string);
-          const normalizedTransaction =
-            normalizeTransactionResponsePayload(transaction);
-          const {
-            gasLimit,
-            gasPrice,
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-            value,
-          } = normalizedTransaction;
+          const transaction = await provider.getTransaction({
+            hash: p?.[0] as `0x${string}`,
+          });
+          // Convert viem transaction to ethers-like format
           response = {
-            ...normalizedTransaction,
-            gasLimit: toHex(gasLimit),
-            gasPrice: gasPrice ? toHex(gasPrice) : undefined,
-            maxFeePerGas: maxFeePerGas ? toHex(maxFeePerGas) : undefined,
-            maxPriorityFeePerGas: maxPriorityFeePerGas
-              ? toHex(maxPriorityFeePerGas)
-              : undefined,
-            value: toHex(value),
+            hash: transaction.hash,
+            blockHash: transaction.blockHash,
+            blockNumber: transaction.blockNumber,
+            transactionIndex: transaction.transactionIndex,
+            from: transaction.from,
+            to: transaction.to,
+            value: toHex(transaction.value),
+            nonce: transaction.nonce,
+            gasLimit: toHex(transaction.gas),
+            gasPrice:
+              transaction.type === 'legacy'
+                ? toHex(transaction.gasPrice)
+                : undefined,
+            maxFeePerGas:
+              transaction.type === 'eip1559'
+                ? toHex(transaction.maxFeePerGas)
+                : undefined,
+            maxPriorityFeePerGas:
+              transaction.type === 'eip1559'
+                ? toHex(transaction.maxPriorityFeePerGas)
+                : undefined,
+            data: transaction.input,
+            type: transaction.type,
+            chainId: transaction.chainId,
           };
           break;
         }
@@ -180,7 +198,10 @@ export const handleProviderRequest = ({
         case 'eth_estimateGas': {
           const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const gas = await provider.estimateGas(p?.[0] as TransactionRequest);
+          const gas = await provider.estimateGas({
+            ...(p?.[0] as EstimateGasParameters),
+            account: activeSession?.address as Address,
+          });
           response = toHex(gas);
           break;
         }
@@ -193,7 +214,10 @@ export const handleProviderRequest = ({
         case 'eth_getCode': {
           const p = params as Array<unknown>;
           const provider = getProvider({ chainId: activeSession?.chainId });
-          response = await provider.getCode(p?.[0] as string, p?.[1] as string);
+          response = await provider.getBytecode({
+            address: p?.[0] as Address,
+            blockTag: p?.[1] as BlockTag,
+          });
           break;
         }
         case 'eth_sendTransaction':
@@ -477,15 +501,24 @@ export const handleProviderRequest = ({
         default: {
           try {
             if (method?.substring(0, 7) === 'wallet_') {
-              // Generic error that will be hanlded correctly in the catch
+              // Generic error that will be handled correctly in the catch
               throw new Error('next');
             }
             // Let's try to fwd the request to the provider
             const provider = getProvider({
               chainId: activeSession?.chainId,
-            }) as StaticJsonRpcProvider;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            response = await provider.send(method, params as any[]);
+            });
+            // Use the appropriate viem method based on the RPC method
+            switch (method) {
+              case 'eth_blockNumber':
+                response = await provider.getBlockNumber();
+                break;
+              case 'eth_gasPrice':
+                response = await provider.getGasPrice();
+                break;
+              default:
+                throw new Error('Method not supported');
+            }
           } catch (e) {
             return buildError({
               id,

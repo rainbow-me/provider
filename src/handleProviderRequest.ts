@@ -1,14 +1,8 @@
-import {
-  Provider,
-  StaticJsonRpcProvider,
-  TransactionRequest,
-} from '@ethersproject/providers';
-
 import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
-import { AddEthereumChainProposedChain } from './references/chains';
-import { Address, isAddress, isHex } from 'viem';
+import { AddEthereumChainProposedChain, Chain } from './references/chains';
+import { Address, EIP1474Methods, isAddress, isHex, PublicClient } from 'viem';
 import {
   CallbackOptions,
   IProviderRequestTransport,
@@ -18,11 +12,18 @@ import {
 import { ActiveSession } from './references/appSession';
 import { toHex } from './utils/hex';
 import { errorCodes } from './references/errorCodes';
-import { ChainNativeCurrency } from 'viem/_types/types/chain';
-
-interface WalletPermissionsParams {
-  eth_accounts: object;
-}
+import {
+  type WalletPermissionsParams,
+  getBalanceParams,
+  getTransactionByHashParams,
+  getCodeParams,
+  getCallParams,
+  getEstimateGasParams,
+  getSigningParams,
+  getAddChainParams,
+  getSwitchChainParams,
+  getWatchAssetParams
+} from './utils/rpcTypes';
 
 const buildError = ({
   id,
@@ -46,20 +47,7 @@ const buildError = ({
   };
 };
 
-export const handleProviderRequest = ({
-  providerRequestTransport,
-  getFeatureFlags,
-  checkRateLimit,
-  isSupportedChain,
-  getActiveSession,
-  removeAppSession,
-  getChainNativeCurrency,
-  getProvider,
-  messengerProviderRequest,
-  onAddEthereumChain,
-  onSwitchEthereumChainNotSupported,
-  onSwitchEthereumChainSupported,
-}: {
+export interface IHandleProviderRequest {
   providerRequestTransport: IProviderRequestTransport;
   getFeatureFlags: () => { custom_rpc: boolean };
   checkRateLimit: ({
@@ -74,8 +62,8 @@ export const handleProviderRequest = ({
   isSupportedChain: (chainId: number) => boolean;
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
   removeAppSession?: ({ host }: { host: string }) => void;
-  getChainNativeCurrency: (chainId: number) => ChainNativeCurrency | undefined;
-  getProvider: (options: { chainId?: number }) => Provider;
+  getChainNativeCurrency: (chainId: number) => Chain['nativeCurrency'] | undefined;
+  getProvider: (options: { chainId?: number }) => PublicClient;
   messengerProviderRequest: (
     request: ProviderRequestPayload,
   ) => Promise<object>;
@@ -100,7 +88,22 @@ export const handleProviderRequest = ({
     proposedChain: AddEthereumChainProposedChain;
     callbackOptions?: CallbackOptions;
   }) => void;
-}) =>
+}
+
+export const handleProviderRequest = ({
+  providerRequestTransport,
+  getFeatureFlags,
+  checkRateLimit,
+  isSupportedChain,
+  getActiveSession,
+  removeAppSession,
+  getChainNativeCurrency,
+  getProvider,
+  messengerProviderRequest,
+  onAddEthereumChain,
+  onSwitchEthereumChainNotSupported,
+  onSwitchEthereumChainSupported,
+}: IHandleProviderRequest) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
     try {
       const rateLimited = await checkRateLimit({ id, meta, method });
@@ -140,16 +143,20 @@ export const handleProviderRequest = ({
           break;
         }
         case 'eth_getBalance': {
-          const p = params as Array<unknown>;
+          const [address] = getBalanceParams(params || []);
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const balance = await provider.getBalance(p?.[0] as string);
+          const balance = await provider.getBalance({
+            address,
+          })
           response = toHex(balance);
           break;
         }
         case 'eth_getTransactionByHash': {
-          const p = params as Array<unknown>;
+          const [hash] = getTransactionByHashParams(params || []);
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const transaction = await provider.getTransaction(p?.[0] as string);
+          const transaction = await provider.getTransaction({
+            hash,
+          });
           const normalizedTransaction =
             normalizeTransactionResponsePayload(transaction);
           const {
@@ -172,15 +179,16 @@ export const handleProviderRequest = ({
           break;
         }
         case 'eth_call': {
-          const p = params as Array<unknown>;
+          const [transaction] = getCallParams(params || []);
           const provider = getProvider({ chainId: activeSession?.chainId });
-          response = await provider.call(p?.[0] as TransactionRequest);
+          const result = await provider.call(transaction);
+          response = result.data;
           break;
         }
         case 'eth_estimateGas': {
-          const p = params as Array<unknown>;
+          const [transaction] = getEstimateGasParams(params || []);
           const provider = getProvider({ chainId: activeSession?.chainId });
-          const gas = await provider.estimateGas(p?.[0] as TransactionRequest);
+          const gas = await provider.estimateGas(transaction);
           response = toHex(gas);
           break;
         }
@@ -191,9 +199,12 @@ export const handleProviderRequest = ({
           break;
         }
         case 'eth_getCode': {
-          const p = params as Array<unknown>;
+          const [address, blockTag] = getCodeParams(params || []);
           const provider = getProvider({ chainId: activeSession?.chainId });
-          response = await provider.getCode(p?.[0] as string, p?.[1] as string);
+          response = await provider.getCode({
+            address,
+            blockTag
+          });
           break;
         }
         case 'eth_sendTransaction':
@@ -203,12 +214,11 @@ export const handleProviderRequest = ({
         case 'eth_signTypedData_v3':
         case 'eth_signTypedData_v4': {
           // If we need to validate the input before showing the UI, it should go here.
-          const p = params as Array<unknown>;
           if (method === 'eth_signTypedData_v4') {
             // we don't trust the params order
-            let dataParam = p?.[1];
-            if (!isAddress(p?.[0] as Address)) {
-              dataParam = p?.[0];
+            let dataParam = params?.[1];
+            if (!isAddress(params?.[0] as Address)) {
+              dataParam = params?.[0];
             }
 
             const data =
@@ -239,8 +249,7 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_addEthereumChain': {
-          const p = params as Array<unknown>;
-          const proposedChain = p?.[0] as AddEthereumChainProposedChain;
+          const [proposedChain] = getAddChainParams(params || []);
           const proposedChainId = Number(proposedChain.chainId);
           const featureFlags = getFeatureFlags();
           if (!featureFlags.custom_rpc) {
@@ -353,8 +362,7 @@ export const handleProviderRequest = ({
           break;
         }
         case 'wallet_switchEthereumChain': {
-          const p = params as Array<unknown>;
-          const proposedChain = p?.[0] as AddEthereumChainProposedChain;
+          const [proposedChain] = getSwitchChainParams(params || []);
           const supportedChainId = isSupportedChain?.(
             Number(proposedChain.chainId),
           );
@@ -367,7 +375,7 @@ export const handleProviderRequest = ({
             })) as { address: Address; chainId: number };
           } else if (!supportedChainId) {
             onSwitchEthereumChainNotSupported?.({
-              proposedChain,
+              proposedChain: proposedChain as AddEthereumChainProposedChain,
               callbackOptions: meta,
             });
             return buildError({
@@ -377,7 +385,7 @@ export const handleProviderRequest = ({
             });
           } else {
             onSwitchEthereumChainSupported?.({
-              proposedChain,
+              proposedChain: proposedChain as AddEthereumChainProposedChain,
               callbackOptions: meta,
             });
           }
@@ -390,17 +398,7 @@ export const handleProviderRequest = ({
           if (!featureFlags.custom_rpc) {
             throw new Error('Method not supported');
           } else {
-            const {
-              type,
-              options: { address, symbol, decimals },
-            } = params as unknown as {
-              type: string;
-              options: {
-                address: Address;
-                symbol?: string;
-                decimals?: number;
-              };
-            };
+            const [{ type, options: { address, symbol, decimals } }] = getWatchAssetParams(params || []);
             if (type !== 'ERC20') {
               return buildError({
                 id,
@@ -457,17 +455,18 @@ export const handleProviderRequest = ({
           break;
         }
         case 'personal_ecRecover': {
-          const p = params as Array<unknown>;
+          const [data, signature] = getSigningParams(params || []);
           response = recoverPersonalSignature({
-            data: p?.[0] as string,
-            signature: p?.[1] as string,
+            data,
+            signature,
           });
           break;
         }
         case 'wallet_revokePermissions': {
           if (
             !!removeAppSession &&
-            (params?.[0] as WalletPermissionsParams)?.eth_accounts
+            params?.[0] && 
+            (params[0] as WalletPermissionsParams).eth_accounts
           ) {
             removeAppSession?.({ host });
             response = null;
@@ -480,12 +479,17 @@ export const handleProviderRequest = ({
               // Generic error that will be hanlded correctly in the catch
               throw new Error('next');
             }
+
             // Let's try to fwd the request to the provider
             const provider = getProvider({
               chainId: activeSession?.chainId,
-            }) as StaticJsonRpcProvider;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            response = await provider.send(method, params as any[]);
+            });
+
+            // Use Viem provider adapter as a fallback
+            response = await provider.request({
+              method,
+              params,
+            } as any); // TODO: Fix this but i cba right now
           } catch (e) {
             return buildError({
               id,

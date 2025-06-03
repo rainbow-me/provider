@@ -2,7 +2,7 @@ import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 import { AddEthereumChainProposedChain, Chain } from './references/chains';
-import { Address, EIP1474Methods, isAddress, isHex, PublicClient } from 'viem';
+import { Address, isAddress, isHex, PublicClient } from 'viem';
 import {
   CallbackOptions,
   IProviderRequestTransport,

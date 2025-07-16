@@ -1,6 +1,19 @@
-.DS_Store
-dist/
-node_modules/
-yarn-error.log
-
+# Environment variables
 .env
+
+# OS
+.DS_Store
+
+# yarn v4
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/cache
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Build artifacts
+dist/

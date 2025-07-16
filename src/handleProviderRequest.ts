@@ -299,10 +299,10 @@ export const handleProviderRequest = ({
                 errorCode: errorCodes.INVALID_INPUT,
               });
               // Validate symbol length
-            } else if (symbol.length < 2 || symbol.length > 6) {
+            } else if (symbol.length < 1 || symbol.length > 6) {
               return buildError({
                 id,
-                message: `Expected 2-6 character string 'nativeCurrency.symbol'. Received: ${symbol}`,
+                message: `Expected 1-6 character string 'nativeCurrency.symbol'. Received: ${symbol}`,
                 errorCode: errorCodes.INVALID_INPUT,
               });
               // Validate symbol against existing chains

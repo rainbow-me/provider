@@ -1,25 +1,30 @@
 import { describe, it, expect, afterAll } from 'vitest';
-import type {
-  TransactionReceipt,
-  TransactionResponse,
-} from '@ethersproject/abstract-provider';
 import { normalizeTransactionResponsePayload } from './ethereum';
-import { BigNumber } from '@ethersproject/bignumber';
+import type { GetTransactionReturnType } from 'viem';
 
 describe('Utils ethereum', () => {
-  const mockTransactionResponse: TransactionResponse = {
-    wait: async () => {
-      return {} as TransactionReceipt;
-    },
-    hash: '',
-    confirmations: 0,
-    from: '',
-    nonce: 0,
-    gasLimit: BigNumber.from(20000),
-    data: '',
-    value: BigNumber.from(1000000000000),
-    chainId: 0,
-  };
+  const mockTransactionResponse: GetTransactionReturnType = {
+    hash: '0x123',
+    blockHash: '0x123',
+    blockNumber: 1000n,
+    type: 'eip1559',
+    typeHex: '0x02',
+    yParity: 0,
+    input: '0x123',
+    r: '0x123',
+    s: '0x123',
+    v: 0n,
+    accessList: [],
+    maxFeePerGas: 1000000000000n,
+    maxPriorityFeePerGas: 1000000000000n,
+    transactionIndex: 0,
+    from: '0x456',
+    to: '0x789',
+    value: 1000000000000n,
+    gas: 20000n,
+    nonce: 100,
+    chainId: 1,
+  }
 
   it('removes wait function on Firefox', () => {
     Object.defineProperty(window.navigator, 'userAgent', {

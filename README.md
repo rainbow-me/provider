@@ -33,6 +33,10 @@ const accounts = await provider.request({
 ## Development
 
 ```bash
+# Match environment
+nvm install && nvm use
+corepack enable
+
 # Install dependencies
 yarn install
 

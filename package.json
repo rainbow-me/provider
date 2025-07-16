@@ -10,6 +10,7 @@
     "dist/**/*"
   ],
   "scripts": {
+    "prepack": "yarn build",
     "build": "tsc",
     "test": "./scripts/tests.sh",
     "lint": "eslint --cache --max-warnings 0",

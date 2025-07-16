@@ -23,8 +23,6 @@ jobs:
           corepack prepare --activate
       - name: Install deps via Yarn
         run: yarn install --immutable
-      - name: Check for frozen lockfile
-        run: yarn check-lockfile
       - name: Zip node_modules
         run: tar czf node_modules.tar.gz node_modules/
       - name: Upload deps artifacts

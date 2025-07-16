@@ -10,12 +10,10 @@
     "dist/**/*"
   ],
   "scripts": {
-    "prepare": "yarn build",
     "build": "tsc",
     "test": "./scripts/tests.sh",
     "lint": "eslint --cache --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "check-lockfile": "./scripts/check-lockfile.sh",
     "audit:ci": "yarn audit-ci --moderate --config audit-ci.jsonc",
     "anvil": "ETH_MAINNET_RPC=$(grep ETH_MAINNET_RPC .env | cut -d '=' -f2) && anvil --fork-url $ETH_MAINNET_RPC",
     "anvil:kill": "lsof -i :8545|tail -n +2|awk '{print $2}'|xargs -r kill -s SIGINT"

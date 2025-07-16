@@ -14,7 +14,6 @@
     "test": "./scripts/tests.sh",
     "lint": "eslint --cache --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "audit:ci": "yarn audit-ci --moderate --config audit-ci.jsonc",
     "anvil": "ETH_MAINNET_RPC=$(grep ETH_MAINNET_RPC .env | cut -d '=' -f2) && anvil --fork-url $ETH_MAINNET_RPC",
     "anvil:kill": "lsof -i :8545|tail -n +2|awk '{print $2}'|xargs -r kill -s SIGINT"
   },
@@ -23,14 +22,13 @@
     "@typescript-eslint/eslint-plugin": "6.20.0",
     "@typescript-eslint/parser": "6.20.0",
     "anvil": "0.0.6",
-    "audit-ci": "6.6.1",
     "eslint": "8.56.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-prettier": "5.1.3",
     "jsdom": "24.0.0",
     "prettier": "3.2.4",
     "typescript": "5.3.3",
-    "vitest": "1.6.0"
+    "vitest": "1.6.1"
   },
   "dependencies": {
     "@ethersproject/abstract-provider": "5.7.0",

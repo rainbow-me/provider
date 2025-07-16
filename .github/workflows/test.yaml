@@ -83,6 +83,6 @@ jobs:
       - name: Lint
         run: yarn lint
       - name: Audit CI
-        run:  yarn audit:ci
+        run:  yarn npm audit --no-deprecations
       - name: Check types
         run: yarn typecheck

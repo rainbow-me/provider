@@ -16,10 +16,14 @@
     "lint": "eslint --cache --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "anvil": "ETH_MAINNET_RPC=$(grep ETH_MAINNET_RPC .env | cut -d '=' -f2) && anvil --fork-url $ETH_MAINNET_RPC",
-    "anvil:kill": "lsof -i :8545|tail -n +2|awk '{print $2}'|xargs -r kill -s SIGINT"
+    "anvil:kill": "lsof -i :8545|tail -n +2|awk '{print $2}'|xargs -r kill -s SIGINT",
+    "changeset": "changeset",
+    "release": "yarn release:verify-git && yarn build && changeset publish --tag latest",
+    "release:verify-git": "git diff --exit-code && git rev-parse --abbrev-ref HEAD | grep \"main\""
   },
   "module": "dist/index.js",
   "devDependencies": {
+    "@changesets/cli": "^2.29.5",
     "@typescript-eslint/eslint-plugin": "6.20.0",
     "@typescript-eslint/parser": "6.20.0",
     "anvil": "0.0.6",

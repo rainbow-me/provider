@@ -1,6 +1,9 @@
 # Environment variables
 .env
 
+# ESLint cache
+.eslintcache
+
 # OS
 .DS_Store
 

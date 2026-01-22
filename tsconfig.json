@@ -1,10 +1,8 @@
 {
   "compilerOptions": {
+    "target": "ES2022",
     "module": "esnext",
-    "lib": [
-      "dom",
-      "esnext"
-    ],
+    "lib": ["dom", "esnext"],
     "outDir": "./dist",
     "rootDir": "./src",
     "esModuleInterop": true,
@@ -15,11 +13,6 @@
     "declarationDir": "./dist",
     "moduleResolution": "node",
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "**/*.test.ts",
-    "node_modules"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"],
 }

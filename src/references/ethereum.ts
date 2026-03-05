@@ -1,6 +1,6 @@
-import { Address } from 'viem';
+import type { Address, Hash, Hex } from 'viem';
 
-export type ChainIdHex = `0x${string}`;
+export type ChainIdHex = Hex;
 
 export enum rpcMethods {
   eth_chainId = 'eth_chainId',
@@ -26,6 +26,70 @@ export enum rpcMethods {
 }
 
 export type RPCMethod = keyof typeof rpcMethods | string;
+
+/** EIP-5792: Capability in request (optional marks capability as optional) */
+export type RequestCapability = { [key: string]: unknown; optional?: boolean };
+
+/** EIP-5792: Wallet Call API */
+export type EIP5792Call = {
+  to?: Address;
+  data?: Hex;
+  value?: Hex;
+  capabilities?: Record<string, RequestCapability>;
+};
+
+/** EIP-5792: Max batch id length (4096 bytes = 8194 chars with 0x prefix) */
+export const MAX_BATCH_ID_LENGTH = 8194;
+
+export type SendCallsParams = {
+  version: string;
+  chainId: Hex;
+  from?: Address;
+  calls: EIP5792Call[];
+  id?: string;
+  atomicRequired: boolean;
+  capabilities?: Record<string, RequestCapability>;
+};
+
+/** Supported capability value from wallet (atomic uses status, others use supported) */
+export type SupportedCapability =
+  | { status: 'supported' | 'ready' | 'unsupported' }
+  | { supported: boolean };
+
+export type CallsStatus = 100 | 200 | 400 | 500 | 600;
+
+export type CallReceipt = {
+  logs: {
+    address: Address;
+    data: Hex;
+    topics: Hex[];
+  }[];
+  status: Hex;
+  blockHash: Hash;
+  blockNumber: Hex;
+  gasUsed: Hex;
+  transactionHash: Hash;
+};
+
+export type BatchRecordBase = {
+  id: string;
+  sender: Address;
+  app: string;
+  chainId: number;
+  atomic: boolean;
+};
+
+export type PendingBatchRecord = BatchRecordBase & {
+  status: 100;
+  receipts?: never;
+};
+
+export type FinalBatchRecord = BatchRecordBase & {
+  status: 200 | 400 | 500 | 600;
+  receipts: [CallReceipt, ...CallReceipt[]];
+};
+
+export type BatchRecord = PendingBatchRecord | FinalBatchRecord;
 
 export type AddEthereumChainParameter = {
   /** A 0x-prefixed hexadecimal string */

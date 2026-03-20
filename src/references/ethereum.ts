@@ -1,4 +1,4 @@
-import type { Address, Hash, Hex } from 'viem';
+import type { Address, Hex, WalletCallReceipt } from 'viem';
 
 export type ChainIdHex = Hex;
 
@@ -55,19 +55,6 @@ export type SupportedCapability =
 
 export type CallsStatus = 100 | 200 | 400 | 500 | 600;
 
-export type CallReceipt = {
-  logs: {
-    address: Address;
-    data: Hex;
-    topics: Hex[];
-  }[];
-  status: Hex;
-  blockHash: Hash;
-  blockNumber: Hex;
-  gasUsed: Hex;
-  transactionHash: Hash;
-};
-
 export type BatchRecordBase = {
   id: string;
   sender: Address;
@@ -83,7 +70,7 @@ export type PendingBatchRecord = BatchRecordBase & {
 
 export type FinalBatchRecord = BatchRecordBase & {
   status: 200 | 400 | 500 | 600;
-  receipts: [CallReceipt, ...CallReceipt[]];
+  receipts: [WalletCallReceipt, ...WalletCallReceipt[]];
 };
 
 export type BatchRecord = PendingBatchRecord | FinalBatchRecord;

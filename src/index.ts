@@ -6,7 +6,6 @@ export { IMessageSender } from './references/messengers';
 export { AddEthereumChainProposedChain } from './references/chains';
 export { RequestArguments, RequestResponse } from './references/messengers';
 export {
-  CallReceipt,
   BatchRecordBase,
   PendingBatchRecord,
   FinalBatchRecord,

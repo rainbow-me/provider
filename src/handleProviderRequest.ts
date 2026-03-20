@@ -8,49 +8,75 @@ import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 import { AddEthereumChainProposedChain } from './references/chains';
-import { Address, isAddress, isHex } from 'viem';
+import type { Capabilities } from 'viem';
+import {
+  RequestCapability,
+  SendCallsParams,
+  BatchRecord,
+  BatchRecordBase,
+} from './references/ethereum';
+import {
+  getSendCallsIdValidationError,
+  isBatchId,
+} from './validation/sendCalls';
+import { type Address, type Chain, type Hex, isAddress, isHex } from 'viem';
 import {
   CallbackOptions,
   IProviderRequestTransport,
   ProviderRequestPayload,
-  RequestError,
 } from './references/messengers';
 import { ActiveSession } from './references/appSession';
 import { toHex } from './utils/hex';
 import { errorCodes } from './references/errorCodes';
-import { ChainNativeCurrency } from 'viem/_types/types/chain';
+
+import { buildError, isPassThroughError, toPassThroughResponse } from './error';
+
+export { createProviderError } from './error';
+
+const isCapabilityOptional = (cap: RequestCapability) =>
+  cap && typeof cap === 'object' && cap.optional === true;
+
+/**
+ * Returns true if the capability is supported. For atomic capability, also accepts
+ * 'ready' status: EIP-7702 delegated accounts that can execute atomic batches
+ * report 'ready' (not just 'supported'). This diverges from strict EIP-5792 spec
+ * but is correct for our type 4 + batch call flow.
+ */
+const isCapabilitySupported = (
+  supported: Capabilities | undefined,
+  name: string,
+): boolean => {
+  const cap = supported?.[name];
+  if (!cap) return false;
+  if ('status' in cap)
+    return cap.status === 'supported' || cap.status === 'ready';
+  if ('supported' in cap) return cap.supported === true;
+  return false;
+};
+
+const getRequiredCapabilities = (sendParams: SendCallsParams): Set<string> => {
+  const required = new Set<string>();
+  if (sendParams.atomicRequired) required.add('atomic');
+  for (const [name, cap] of Object.entries(sendParams.capabilities ?? {})) {
+    if (!isCapabilityOptional(cap as RequestCapability)) required.add(name);
+  }
+  for (const call of sendParams.calls) {
+    for (const [name, cap] of Object.entries(call.capabilities ?? {})) {
+      if (!isCapabilityOptional(cap as RequestCapability)) required.add(name);
+    }
+  }
+  return required;
+};
 
 interface WalletPermissionsParams {
   eth_accounts: object;
 }
 
-const buildError = ({
-  id,
-  message,
-  errorCode,
-}: {
-  id: number;
-  errorCode: {
-    code: number;
-    name: string;
-  };
-  message?: string;
-}): { id: number; error: RequestError } => {
-  return {
-    id,
-    error: {
-      name: errorCode.name,
-      message,
-      code: errorCode.code,
-    },
-  };
-};
-
 export const handleProviderRequest = ({
   providerRequestTransport,
   getFeatureFlags,
   checkRateLimit,
-  isSupportedChain,
+  getSupportedChainIds,
   getActiveSession,
   removeAppSession,
   getChainNativeCurrency,
@@ -59,6 +85,10 @@ export const handleProviderRequest = ({
   onAddEthereumChain,
   onSwitchEthereumChainNotSupported,
   onSwitchEthereumChainSupported,
+  getCapabilities,
+  getBatchByKey,
+  setBatch,
+  showCallsStatus,
 }: {
   providerRequestTransport: IProviderRequestTransport;
   getFeatureFlags: () => { custom_rpc: boolean };
@@ -71,10 +101,10 @@ export const handleProviderRequest = ({
     meta: CallbackOptions;
     method: string;
   }) => Promise<{ id: number; error: Error } | undefined>;
-  isSupportedChain: (chainId: number) => boolean;
+  getSupportedChainIds: () => number[];
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
   removeAppSession?: ({ host }: { host: string }) => void;
-  getChainNativeCurrency: (chainId: number) => ChainNativeCurrency | undefined;
+  getChainNativeCurrency: (chainId: number) => Chain['nativeCurrency'] | undefined;
   getProvider: (options: { chainId?: number }) => Provider;
   messengerProviderRequest: (
     request: ProviderRequestPayload,
@@ -100,8 +130,27 @@ export const handleProviderRequest = ({
     proposedChain: AddEthereumChainProposedChain;
     callbackOptions?: CallbackOptions;
   }) => void;
+  getCapabilities?: (params: {
+    address: Address;
+    chainIds: number[];
+  }) => Promise<Record<number, Capabilities>>;
+  getBatchByKey?: (params: {
+    id: string;
+    sender: Address;
+    app: string;
+  }) => Promise<BatchRecord | undefined> | BatchRecord | undefined;
+  showCallsStatus?: (params: {
+    batchId: string;
+    sender: Address;
+    app: string;
+    chainId: number;
+    tabId: string;
+  }) => void | Promise<void>;
+  setBatch?: (record: BatchRecordBase) => void;
 }) =>
   providerRequestTransport?.reply(async ({ method, id, params }, meta) => {
+    const isSupportedChain = (chainId: number) =>
+      getSupportedChainIds().includes(chainId);
     try {
       const rateLimited = await checkRateLimit({ id, meta, method });
       if (rateLimited) {
@@ -244,7 +293,7 @@ export const handleProviderRequest = ({
           const proposedChainId = Number(proposedChain.chainId);
           const featureFlags = getFeatureFlags();
           if (!featureFlags.custom_rpc) {
-            const supportedChain = isSupportedChain?.(proposedChainId);
+            const supportedChain = isSupportedChain(proposedChainId);
             if (!supportedChain) {
               return buildError({
                 id,
@@ -306,7 +355,7 @@ export const handleProviderRequest = ({
                 errorCode: errorCodes.INVALID_INPUT,
               });
               // Validate symbol against existing chains
-            } else if (isSupportedChain?.(Number(chainId))) {
+            } else if (isSupportedChain(Number(chainId))) {
               const knownChainNativeCurrency = getChainNativeCurrency(
                 Number(chainId),
               );
@@ -355,7 +404,7 @@ export const handleProviderRequest = ({
         case 'wallet_switchEthereumChain': {
           const p = params as Array<unknown>;
           const proposedChain = p?.[0] as AddEthereumChainProposedChain;
-          const supportedChainId = isSupportedChain?.(
+          const supportedChainId = isSupportedChain(
             Number(proposedChain.chainId),
           );
           if (!activeSession) {
@@ -464,6 +513,280 @@ export const handleProviderRequest = ({
           });
           break;
         }
+        case 'wallet_getCapabilities': {
+          if (!getCapabilities) {
+            return buildError({
+              id,
+              message: 'Method not supported',
+              errorCode: errorCodes.METHOD_NOT_SUPPORTED,
+            });
+          }
+          const p = params as Array<unknown>;
+          const address = p?.[0] as Address;
+          const chainIdsParam = p?.[1] as Hex[] | undefined;
+          if (!activeSession || !address) {
+            return buildError({
+              id,
+              message: 'Unauthorized',
+              errorCode: { code: 4100, name: 'Unauthorized' },
+            });
+          }
+          const sessionAddress = activeSession.address?.toLowerCase();
+          const requestedAddress = address?.toLowerCase?.();
+          if (sessionAddress !== requestedAddress) {
+            return buildError({
+              id,
+              message: 'Unauthorized',
+              errorCode: { code: 4100, name: 'Unauthorized' },
+            });
+          }
+          const chainIds = chainIdsParam?.length
+            ? chainIdsParam.map((c) => Number(c))
+            : getSupportedChainIds();
+          const supportedChainIds = chainIds.filter(isSupportedChain);
+          const capabilities = await getCapabilities({
+            address,
+            chainIds: supportedChainIds,
+          });
+          const result: Record<string, Record<string, unknown>> = {};
+          for (const chainId of supportedChainIds) {
+            result[toHex(chainId) as Hex] = (capabilities[chainId] ??
+              {}) as Record<string, unknown>;
+          }
+          response = result;
+          break;
+        }
+        case 'wallet_getCallsStatus': {
+          if (!getBatchByKey) {
+            return buildError({
+              id,
+              message: 'Method not supported',
+              errorCode: errorCodes.METHOD_NOT_SUPPORTED,
+            });
+          }
+          const p = params as Array<unknown>;
+          const batchId = p?.[0];
+          if (!isBatchId(batchId)) {
+            const idError = getSendCallsIdValidationError(batchId);
+            return buildError({
+              id,
+              message: idError?.message ?? 'Invalid params',
+              errorCode: errorCodes.INVALID_PARAMS,
+            });
+          }
+          if (!activeSession) {
+            return buildError({
+              id,
+              message: 'Unknown batch id',
+              errorCode: errorCodes.UNKNOWN_BATCH_ID,
+            });
+          }
+          const sender = activeSession.address;
+          const app = host;
+          const batch = await Promise.resolve(
+            getBatchByKey({
+              id: batchId,
+              sender,
+              app,
+            }),
+          );
+          if (!batch) {
+            return buildError({
+              id,
+              message: 'Unknown batch id',
+              errorCode: errorCodes.UNKNOWN_BATCH_ID,
+            });
+          }
+          response = {
+            version: '2.0.0',
+            id: batch.id,
+            chainId: toHex(batch.chainId) as Hex,
+            status: batch.status,
+            atomic: batch.atomic,
+            ...('receipts' in batch && batch.receipts
+              ? { receipts: batch.receipts }
+              : {}),
+          };
+          break;
+        }
+        case 'wallet_sendCalls': {
+          if (!setBatch || !getBatchByKey || !getCapabilities) {
+            return buildError({
+              id,
+              message: 'Method not supported',
+              errorCode: errorCodes.METHOD_NOT_SUPPORTED,
+            });
+          }
+          const p = params as Array<unknown>;
+          const sendParams = p?.[0] as SendCallsParams;
+          if (
+            !sendParams?.version ||
+            !sendParams?.chainId ||
+            !sendParams?.calls ||
+            !sendParams?.from ||
+            sendParams?.atomicRequired == null
+          ) {
+            return buildError({
+              id,
+              message: 'Invalid params',
+              errorCode: errorCodes.INVALID_PARAMS,
+            });
+          }
+          if (!isAddress(sendParams.from)) {
+            return buildError({
+              id,
+              message: 'Invalid from address',
+              errorCode: errorCodes.INVALID_PARAMS,
+            });
+          }
+          if (sendParams.id && !isBatchId(sendParams.id)) {
+            const idError = getSendCallsIdValidationError(sendParams.id);
+            return buildError({
+              id,
+              message: idError?.message ?? 'Invalid params',
+              errorCode: errorCodes.INVALID_PARAMS,
+            });
+          }
+          const chainId = Number(sendParams.chainId);
+          if (!isSupportedChain(chainId)) {
+            return buildError({
+              id,
+              message: 'Unsupported chain id',
+              errorCode: errorCodes.UNSUPPORTED_CHAIN_ID,
+            });
+          }
+          if (!activeSession) {
+            return buildError({
+              id,
+              message: 'Unauthorized',
+              errorCode: { code: 4100, name: 'Unauthorized' },
+            });
+          }
+          if (
+            sendParams.from.toLowerCase() !==
+            activeSession.address.toLowerCase()
+          ) {
+            return buildError({
+              id,
+              message: 'from address does not match connected account',
+              errorCode: { code: 4100, name: 'Unauthorized' },
+            });
+          }
+          const sender = activeSession.address;
+          const app = host;
+          const atomicRequired = sendParams.atomicRequired;
+
+          const caps = await getCapabilities({
+            address: sender,
+            chainIds: [chainId],
+          });
+          const requiredCaps = getRequiredCapabilities(sendParams);
+          if (requiredCaps.size > 0) {
+            const chainCaps = caps[chainId];
+
+            for (const name of Array.from(requiredCaps)) {
+              if (!isCapabilitySupported(chainCaps, name)) {
+                return buildError({
+                  id,
+                  message:
+                    name === 'atomic'
+                      ? 'Atomicity not supported'
+                      : 'Unsupported non-optional capability',
+                  errorCode:
+                    name === 'atomic'
+                      ? errorCodes.ATOMICITY_NOT_SUPPORTED
+                      : errorCodes.UNSUPPORTED_NON_OPTIONAL_CAPABILITY,
+                });
+              }
+            }
+          }
+
+          let batchId = sendParams.id;
+          if (batchId) {
+            const existing = await Promise.resolve(
+              getBatchByKey({ id: batchId, sender, app }),
+            );
+            if (existing) {
+              return buildError({
+                id,
+                message: 'Duplicate batch id',
+                errorCode: errorCodes.DUPLICATE_BATCH_ID,
+              });
+            }
+          } else {
+            const bytes = new Uint8Array(32);
+            if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+              crypto.getRandomValues(bytes);
+            }
+            batchId = `0x${Array.from(bytes)
+              .map((b) => b.toString(16).padStart(2, '0'))
+              .join('')}`;
+          }
+          setBatch({
+            id: batchId,
+            sender,
+            app,
+            chainId,
+            atomic: atomicRequired,
+          });
+          response = await messengerProviderRequest({
+            method,
+            id,
+            params: [{ ...sendParams, id: batchId }],
+            meta,
+          });
+          break;
+        }
+        case 'wallet_showCallsStatus': {
+          if (!getBatchByKey || !showCallsStatus) {
+            return buildError({
+              id,
+              message: 'Method not supported',
+              errorCode: errorCodes.METHOD_NOT_SUPPORTED,
+            });
+          }
+          const p = params as Array<unknown>;
+          const batchId = p?.[0];
+          if (!isBatchId(batchId)) {
+            const idError = getSendCallsIdValidationError(batchId);
+            return buildError({
+              id,
+              message: idError?.message ?? 'Invalid params',
+              errorCode: errorCodes.INVALID_PARAMS,
+            });
+          }
+          if (!activeSession) {
+            return buildError({
+              id,
+              message: 'Unknown batch id',
+              errorCode: errorCodes.UNKNOWN_BATCH_ID,
+            });
+          }
+          const batch = await Promise.resolve(
+            getBatchByKey({
+              id: batchId,
+              sender: activeSession.address,
+              app: host,
+            }),
+          );
+          if (!batch) {
+            return buildError({
+              id,
+              message: 'Unknown batch id',
+              errorCode: errorCodes.UNKNOWN_BATCH_ID,
+            });
+          }
+          const tabId = String(meta?.sender?.tab?.id ?? '');
+          await showCallsStatus({
+            batchId,
+            sender: activeSession.address,
+            app: host,
+            chainId: batch.chainId,
+            tabId,
+          });
+          response = null;
+          break;
+        }
         case 'wallet_revokePermissions': {
           if (
             !!removeAppSession &&
@@ -497,6 +820,7 @@ export const handleProviderRequest = ({
       }
       return { id, result: response };
     } catch (error) {
+      if (isPassThroughError(error)) return toPassThroughResponse(id, error);
       return buildError({
         id,
         message: (error as Error).message,

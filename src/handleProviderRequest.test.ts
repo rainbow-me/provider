@@ -1,11 +1,14 @@
-import { describe, it, vi, expect, beforeAll, Mock } from 'vitest';
-import { handleProviderRequest } from './handleProviderRequest';
+import { describe, it, vi, expect, beforeAll, beforeEach, Mock } from 'vitest';
+import {
+  handleProviderRequest,
+  createProviderError,
+} from './handleProviderRequest';
 import { Messenger, createTransport } from './utils/tests';
 import {
   ProviderRequestPayload,
   RequestResponse,
 } from './references/messengers';
-import { Address, isHex, toHex } from 'viem';
+import { type Address, isHex, toHex } from 'viem';
 import { mainnet, optimism } from 'viem/chains';
 import { StaticJsonRpcProvider } from '@ethersproject/providers';
 
@@ -53,7 +56,7 @@ const TYPED_MESSAGE = {
 describe('handleProviderRequest', () => {
   const getFeatureFlagsMock = vi.fn(() => ({ custom_rpc: true }));
   const checkRateLimitMock: Mock = vi.fn(() => Promise.resolve(undefined));
-  const isSupportedChainMock = vi.fn(() => true);
+  const getSupportedChainIdsMock = vi.fn(() => [mainnet.id, optimism.id]);
   const getActiveSessionMock = vi.fn(({ host }: { host: string }) => {
     switch (host) {
       case 'dapp1.com': {
@@ -143,7 +146,7 @@ describe('handleProviderRequest', () => {
       providerRequestTransport: transport,
       getFeatureFlags: getFeatureFlagsMock,
       checkRateLimit: checkRateLimitMock,
-      isSupportedChain: isSupportedChainMock,
+      getSupportedChainIds: getSupportedChainIdsMock,
       getActiveSession: getActiveSessionMock,
       getChainNativeCurrency: getChainNativeCurrencyMock,
       getProvider: getProviderMock,
@@ -528,7 +531,7 @@ describe('handleProviderRequest', () => {
             decimals: 18,
             image: 'https://foo.io/token-image.svg',
           },
-        },
+        } as unknown as Array<unknown>,
         meta: {
           sender: { url: 'https://dapp1.com' },
           topic: 'providerRequest',
@@ -537,5 +540,490 @@ describe('handleProviderRequest', () => {
       { id: 1 },
     );
     expect(response.result).toBeTruthy();
+  });
+});
+
+describe('handleProviderRequest - error passthrough', () => {
+  const getFeatureFlagsMock = vi.fn(() => ({ custom_rpc: true }));
+  const checkRateLimitMock: Mock = vi.fn(() => Promise.resolve(undefined));
+  const getSupportedChainIdsMock = vi.fn(() => [mainnet.id, optimism.id]);
+  const getActiveSessionMock = vi.fn(() => ({
+    address: RAINBOWWALLET_ETH_ADDRESS,
+    chainId: mainnet.id,
+  }));
+  const getChainNativeCurrencyMock = vi.fn(() => mainnet.nativeCurrency);
+  const getProviderMock = vi.fn(
+    () => new StaticJsonRpcProvider('http://127.0.0.1:8545'),
+  );
+
+  const getCapabilitiesMock = vi.fn();
+  const getBatchByKeyMock = vi.fn();
+  const setBatchMock = vi.fn();
+  const showCallsStatusMock = vi.fn();
+  const messengerProviderRequestMock = vi.fn();
+
+  const messenger = new Messenger('test-passthrough');
+  const transport = createTransport<ProviderRequestPayload, RequestResponse>({
+    messenger,
+    topic: 'providerRequest',
+  });
+
+  const meta = {
+    sender: { url: 'https://dapp1.com' },
+    topic: 'providerRequest',
+  };
+
+  const sendPayload = (
+    id: number,
+    method: string,
+    params: readonly unknown[] = [],
+  ) =>
+    transport.send(
+      { id, method, params: [...params], meta } as ProviderRequestPayload,
+      { id },
+    );
+
+  beforeAll(() => {
+    handleProviderRequest({
+      providerRequestTransport: transport,
+      getFeatureFlags: getFeatureFlagsMock,
+      checkRateLimit: checkRateLimitMock,
+      getSupportedChainIds: getSupportedChainIdsMock,
+      getActiveSession: getActiveSessionMock,
+      getChainNativeCurrency: getChainNativeCurrencyMock,
+      getProvider: getProviderMock,
+      messengerProviderRequest: messengerProviderRequestMock,
+      onAddEthereumChain: vi.fn(() => ({ chainAlreadyAdded: false })),
+      onSwitchEthereumChainNotSupported: vi.fn(),
+      onSwitchEthereumChainSupported: vi.fn(),
+      getCapabilities: getCapabilitiesMock,
+      getBatchByKey: getBatchByKeyMock,
+      setBatch: setBatchMock,
+      showCallsStatus: showCallsStatusMock,
+    });
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    messengerProviderRequestMock.mockResolvedValue({ id: '0x123' });
+    getCapabilitiesMock.mockResolvedValue({
+      [mainnet.id]: { atomic: { status: 'supported' } },
+      [optimism.id]: { atomic: { status: 'supported' } },
+    });
+    getBatchByKeyMock.mockResolvedValue(undefined);
+    setBatchMock.mockImplementation(() => {});
+  });
+
+  describe('createProviderError', () => {
+    it('creates error with code and name for passthrough', () => {
+      const err = createProviderError(
+        'METHOD_NOT_SUPPORTED',
+        'Feature disabled',
+      );
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toBe('Feature disabled');
+      expect(err.code).toBe(-32004);
+      expect(err.name).toBe('Method not supported');
+    });
+
+    it('uses errorCode.name when message omitted', () => {
+      const err = createProviderError('METHOD_NOT_SUPPORTED');
+      expect(err.message).toBe('Method not supported');
+    });
+  });
+
+  const EIP5792_METHODS = [
+    {
+      method: 'wallet_getCapabilities',
+      params: [RAINBOWWALLET_ETH_ADDRESS],
+      setupThrow: (err: Error) => {
+        getCapabilitiesMock.mockRejectedValueOnce(err);
+      },
+    },
+    {
+      method: 'wallet_getCallsStatus',
+      params: ['0x' + 'a'.repeat(64)],
+      setupThrow: (err: Error) => {
+        getBatchByKeyMock.mockRejectedValueOnce(err);
+      },
+    },
+    {
+      method: 'wallet_sendCalls',
+      params: [
+        {
+          version: '2.0.0',
+          chainId: toHex(mainnet.id),
+          from: RAINBOWWALLET_ETH_ADDRESS,
+          atomicRequired: false,
+          calls: [{ to: RAINBOWWALLET_ETH_ADDRESS as Address, value: 0n }],
+        },
+      ],
+      setupThrow: (err: Error) => {
+        setBatchMock.mockImplementationOnce(() => {
+          throw err;
+        });
+      },
+    },
+    {
+      method: 'wallet_showCallsStatus',
+      params: ['0x' + 'b'.repeat(64)],
+      setupThrow: (err: Error) => {
+        getBatchByKeyMock.mockResolvedValueOnce({
+          id: '0x' + 'b'.repeat(64),
+          chainId: mainnet.id,
+          status: 200,
+          atomic: false,
+          txHashes: [TX_HASH],
+        });
+        showCallsStatusMock.mockRejectedValueOnce(err);
+      },
+    },
+  ] as const;
+
+  describe('pass-through errors', () => {
+    it.each(EIP5792_METHODS)(
+      'passes through $method when implementation throws createProviderError',
+      async ({ method, params, setupThrow }) => {
+        const passthroughError = createProviderError(
+          'METHOD_NOT_SUPPORTED',
+          'Method not supported',
+        );
+        setupThrow(passthroughError);
+
+        const response = await sendPayload(1, method, params);
+
+        expect(response).toHaveProperty('error');
+        expect(response.error).toEqual({
+          code: -32004,
+          name: 'Method not supported',
+          message: 'Method not supported',
+        });
+      },
+    );
+
+    it.each(EIP5792_METHODS)(
+      'passes through $method when implementation throws object with code/name',
+      async ({ method, params, setupThrow }) => {
+        const passthroughError = Object.assign(new Error('Custom message'), {
+          code: 5710,
+          name: 'Unsupported chain id',
+        });
+        setupThrow(passthroughError);
+
+        const response = await sendPayload(1, method, params);
+
+        expect(response).toHaveProperty('error');
+        expect(response.error).toEqual({
+          code: 5710,
+          name: 'Unsupported chain id',
+          message: 'Custom message',
+        });
+      },
+    );
+
+    it('passes through custom error codes via createProviderError', () => {
+      const keys = [
+        'ATOMICITY_NOT_SUPPORTED',
+        'UNSUPPORTED_CHAIN_ID',
+        'UNKNOWN_BATCH_ID',
+        'DUPLICATE_BATCH_ID',
+      ] as const;
+      keys.forEach((key) => {
+        const err = createProviderError(key);
+        expect(typeof err.code).toBe('number');
+        expect(typeof err.name).toBe('string');
+      });
+    });
+  });
+
+  describe('unknown errors', () => {
+    it.each(EIP5792_METHODS)(
+      'returns INTERNAL_ERROR for $method when implementation throws plain Error',
+      async ({ method, params, setupThrow }) => {
+        setupThrow(new Error('Something went wrong'));
+
+        const response = await sendPayload(1, method, params);
+
+        expect(response).toHaveProperty('error');
+        expect(response.error).toEqual({
+          code: -32603,
+          name: 'Internal error',
+          message: 'Something went wrong',
+        });
+      },
+    );
+
+    it.each(EIP5792_METHODS)(
+      'returns INTERNAL_ERROR for $method when implementation throws error without code',
+      async ({ method, params, setupThrow }) => {
+        const err = Object.assign(new Error('No code'), {
+          name: 'CustomError',
+        });
+        setupThrow(err);
+
+        const response = await sendPayload(1, method, params);
+
+        expect(response.error?.code).toBe(-32603);
+        expect(response.error?.name).toBe('Internal error');
+      },
+    );
+
+    it.each(EIP5792_METHODS)(
+      'returns INTERNAL_ERROR for $method when implementation throws error without name',
+      async ({ method, params, setupThrow }) => {
+        const err = Object.assign(new Error('No name'), {
+          code: -32004,
+          name: 123,
+        }); // name must be string for passthrough
+        setupThrow(err);
+
+        const response = await sendPayload(1, method, params);
+
+        expect(response.error?.code).toBe(-32603);
+        expect(response.error?.name).toBe('Internal error');
+      },
+    );
+  });
+
+  describe('messengerProviderRequest throws', () => {
+    it('passes through when messengerProviderRequest throws createProviderError for wallet_sendCalls', async () => {
+      const passthroughError = createProviderError(
+        'METHOD_NOT_SUPPORTED',
+        'Feature disabled',
+      );
+      messengerProviderRequestMock.mockRejectedValueOnce(passthroughError);
+
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        {
+          version: '2.0.0',
+          chainId: toHex(mainnet.id),
+          from: RAINBOWWALLET_ETH_ADDRESS,
+          atomicRequired: false,
+          calls: [{ to: RAINBOWWALLET_ETH_ADDRESS as Address, value: 0n }],
+        },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error).toEqual({
+        code: -32004,
+        name: 'Method not supported',
+        message: 'Feature disabled',
+      });
+    });
+
+    it('returns INTERNAL_ERROR when messengerProviderRequest throws plain Error for wallet_sendCalls', async () => {
+      messengerProviderRequestMock.mockRejectedValueOnce(
+        new Error('Wallet rejected'),
+      );
+
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        {
+          version: '2.0.0',
+          chainId: toHex(mainnet.id),
+          from: RAINBOWWALLET_ETH_ADDRESS,
+          atomicRequired: false,
+          calls: [{ to: RAINBOWWALLET_ETH_ADDRESS as Address, value: 0n }],
+        },
+      ]);
+
+      expect(response.error?.code).toBe(-32603);
+      expect(response.error?.name).toBe('Internal error');
+      expect(response.error?.message).toBe('Wallet rejected');
+    });
+  });
+
+  describe('capability validation (wallet_sendCalls)', () => {
+    const baseSendParams = {
+      version: '2.0.0',
+      chainId: toHex(mainnet.id),
+      from: RAINBOWWALLET_ETH_ADDRESS,
+      atomicRequired: false,
+      calls: [{ to: RAINBOWWALLET_ETH_ADDRESS as Address, value: 0n }],
+    };
+
+    it('rejects when atomicRequired is true and atomic is unsupported (5760)', async () => {
+      getCapabilitiesMock.mockResolvedValueOnce({
+        [mainnet.id]: { atomic: { status: 'unsupported' } },
+      });
+
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        { ...baseSendParams, atomicRequired: true },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error).toEqual({
+        code: 5760,
+        name: 'Atomicity not supported',
+        message: 'Atomicity not supported',
+      });
+      expect(setBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('proceeds when atomicRequired is true and atomic is supported', async () => {
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        { ...baseSendParams, atomicRequired: true },
+      ]);
+
+      expect(response).not.toHaveProperty('error');
+      expect(response.result).toEqual({ id: '0x123' });
+      expect(setBatchMock).toHaveBeenCalled();
+    });
+
+    it('rejects when non-optional capability is unsupported (5700)', async () => {
+      getCapabilitiesMock.mockResolvedValueOnce({
+        [mainnet.id]: {
+          atomic: { status: 'supported' },
+          // paymasterService not in supported
+        },
+      });
+
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        {
+          ...baseSendParams,
+          capabilities: {
+            paymasterService: { url: 'https://example.com' }, // not optional
+          },
+        },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error).toEqual({
+        code: 5700,
+        name: 'Unsupported non-optional capability',
+        message: 'Unsupported non-optional capability',
+      });
+      expect(setBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('proceeds when optional capability is unsupported', async () => {
+      getCapabilitiesMock.mockResolvedValueOnce({
+        [mainnet.id]: { atomic: { status: 'supported' } },
+      });
+
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        {
+          ...baseSendParams,
+          capabilities: {
+            paymasterService: { url: 'https://example.com', optional: true },
+          },
+        },
+      ]);
+
+      expect(response).not.toHaveProperty('error');
+      expect(setBatchMock).toHaveBeenCalled();
+    });
+
+    it('proceeds when no capabilities required', async () => {
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        baseSendParams,
+      ]);
+
+      expect(response).not.toHaveProperty('error');
+      expect(setBatchMock).toHaveBeenCalled();
+    });
+
+    it('rejects when call-level non-optional capability is unsupported (5700)', async () => {
+      getCapabilitiesMock.mockResolvedValueOnce({
+        [mainnet.id]: { atomic: { status: 'supported' } },
+      });
+
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        {
+          ...baseSendParams,
+          calls: [
+            {
+              to: RAINBOWWALLET_ETH_ADDRESS as Address,
+              value: 0n,
+              capabilities: {
+                paymasterService: { url: 'https://example.com' }, // not optional
+              },
+            },
+          ],
+        },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error?.code).toBe(5700);
+      expect(setBatchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('from validation (wallet_sendCalls)', () => {
+    const baseSendParams = {
+      version: '2.0.0',
+      chainId: toHex(mainnet.id),
+      from: RAINBOWWALLET_ETH_ADDRESS,
+      atomicRequired: false,
+      calls: [{ to: RAINBOWWALLET_ETH_ADDRESS as Address, value: 0n }],
+    };
+
+    it('rejects when from is not a valid address', async () => {
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        { ...baseSendParams, from: '0xinvalid' as Address },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error).toEqual({
+        code: -32602,
+        name: 'Invalid params',
+        message: 'Invalid from address',
+      });
+      expect(setBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects when from is not a string', async () => {
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        { ...baseSendParams, from: 123 as unknown as Address },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error?.message).toBe('Invalid from address');
+      expect(setBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('proceeds when from is a valid address matching connected account', async () => {
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        { ...baseSendParams, from: RAINBOWWALLET_ETH_ADDRESS },
+      ]);
+
+      expect(response).not.toHaveProperty('error');
+      expect(setBatchMock).toHaveBeenCalled();
+    });
+
+    it('rejects when from is omitted', async () => {
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        {
+          version: '2.0.0',
+          chainId: toHex(mainnet.id),
+          atomicRequired: false,
+          calls: [{ to: RAINBOWWALLET_ETH_ADDRESS as Address, value: 0n }],
+        },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error).toEqual({
+        code: -32602,
+        name: 'Invalid params',
+        message: 'Invalid params',
+      });
+      expect(setBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects when from does not match connected account', async () => {
+      const response = await sendPayload(1, 'wallet_sendCalls', [
+        {
+          ...baseSendParams,
+          from: TESTMAR27_ETH_ADDRESS,
+        },
+      ]);
+
+      expect(response).toHaveProperty('error');
+      expect(response.error).toEqual({
+        code: 4100,
+        name: 'Unauthorized',
+        message: 'from address does not match connected account',
+      });
+      expect(setBatchMock).not.toHaveBeenCalled();
+    });
   });
 });

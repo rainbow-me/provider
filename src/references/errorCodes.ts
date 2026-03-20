@@ -48,4 +48,33 @@ export const errorCodes = {
     code: -32006,
     name: 'JSON-RPC version not supported',
   }, // Version of JSON-RPC protocol is not supported
+  // EIP-5792 batch errors
+  UNSUPPORTED_NON_OPTIONAL_CAPABILITY: {
+    code: 5700,
+    name: 'Unsupported non-optional capability',
+  }, // Capability not marked optional is not supported by wallet
+  UNSUPPORTED_CHAIN_ID: {
+    code: 5710,
+    name: 'Unsupported chain id',
+  },
+  DUPLICATE_BATCH_ID: {
+    code: 5720,
+    name: 'Duplicate batch id',
+  }, // Batch id already exists for (id, sender, app)
+  UNKNOWN_BATCH_ID: {
+    code: 5730,
+    name: 'Unknown batch id',
+  }, // Batch not found
+  ATOMIC_UPGRADE_REJECTED: {
+    code: 5740,
+    name: 'Atomic upgrade rejected',
+  },
+  BUNDLE_TOO_LARGE: {
+    code: 5750,
+    name: 'Bundle too large',
+  },
+  ATOMICITY_NOT_SUPPORTED: {
+    code: 5760,
+    name: 'Atomicity not supported',
+  },
 };

@@ -1,11 +1,11 @@
 import { createProviderError } from '../error';
-import { isAddress } from 'viem';
+import { isAddress, type Hex } from 'viem';
 
 /** EIP-5792: Max batch id length (4096 bytes = 8194 chars with 0x prefix) */
 const MAX_BATCH_ID_LENGTH = 8194;
 
 /** Valid batch id type (non-empty string within max length). */
-type BatchId = string;
+type BatchId = Hex | string;
 
 /** Typeguard: returns true if id is a valid batch id. */
 export const isBatchId = (id: unknown): id is BatchId =>

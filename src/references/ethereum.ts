@@ -46,8 +46,6 @@ export type SupportedCapability =
   | { status: 'supported' | 'ready' | 'unsupported' }
   | { supported: boolean };
 
-export type CallsStatus = 100 | 200 | 400 | 500 | 600;
-
 export type BatchRecordBase = {
   id: string;
   sender: Address;

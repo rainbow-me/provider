@@ -35,11 +35,12 @@ export type RPCMethod = keyof typeof rpcMethods | string;
 /** EIP-5792: Capability in request (optional marks capability as optional) */
 export type RequestCapability = { [key: string]: unknown; optional?: boolean };
 
+// viem types chainId as optional but EIP-5792 requires it; intersection overrides to required
 export type SendCallsParams = WalletSendCallsParameters<
   Record<string, RequestCapability>,
   Hex,
   Hex
->[0];
+>[0] & { chainId: Hex };
 
 
 export type BatchRecordBase = {

@@ -11,6 +11,5 @@ export {
   FinalBatchRecord,
   BatchRecord,
   SendCallsParams,
-  EIP5792Call,
   RequestCapability,
 } from './references/ethereum';

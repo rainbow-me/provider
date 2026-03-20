@@ -1,4 +1,9 @@
-import type { Address, Hex, WalletCallReceipt } from 'viem';
+import type {
+  Address,
+  Hex,
+  WalletCallReceipt,
+  WalletSendCallsParameters,
+} from 'viem';
 
 export type ChainIdHex = Hex;
 
@@ -30,23 +35,11 @@ export type RPCMethod = keyof typeof rpcMethods | string;
 /** EIP-5792: Capability in request (optional marks capability as optional) */
 export type RequestCapability = { [key: string]: unknown; optional?: boolean };
 
-/** EIP-5792: Wallet Call API */
-export type EIP5792Call = {
-  to?: Address;
-  data?: Hex;
-  value?: Hex;
-  capabilities?: Record<string, RequestCapability>;
-};
-
-export type SendCallsParams = {
-  version: string;
-  chainId: Hex;
-  from?: Address;
-  calls: EIP5792Call[];
-  id?: string;
-  atomicRequired: boolean;
-  capabilities?: Record<string, RequestCapability>;
-};
+export type SendCallsParams = WalletSendCallsParameters<
+  Record<string, RequestCapability>,
+  Hex,
+  Hex
+>[0];
 
 /** Supported capability value from wallet (atomic uses status, others use supported) */
 export type SupportedCapability =

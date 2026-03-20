@@ -24,16 +24,6 @@ export const getSendCallsIdValidationError = (
   return null;
 };
 
-/**
- * Validates app-provided batch id for wallet_sendCalls.
- * Throws createProviderError('INVALID_PARAMS', ...) if invalid.
- * Use before calling wallet_sendCalls to fail fast with the same error shape as the provider.
- */
-export const validateSendCallsId = (id: unknown): void => {
-  const err = getSendCallsIdValidationError(id);
-  if (err) throw createProviderError('INVALID_PARAMS', err.message);
-};
-
 /** Returns validation error message if from is invalid when provided, null otherwise. */
 export const getSendCallsFromValidationError = (
   from: unknown,

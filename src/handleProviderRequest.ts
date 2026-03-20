@@ -8,10 +8,10 @@ import { deriveChainIdByHostname, getDappHost, isValidUrl } from './utils/apps';
 import { normalizeTransactionResponsePayload } from './utils/ethereum';
 import { recoverPersonalSignature } from '@metamask/eth-sig-util';
 import { AddEthereumChainProposedChain } from './references/chains';
+import type { Capabilities } from 'viem';
 import {
   RequestCapability,
   SendCallsParams,
-  SupportedCapability,
   BatchRecord,
   BatchRecordBase,
 } from './references/ethereum';
@@ -43,7 +43,7 @@ const isCapabilityOptional = (cap: RequestCapability) =>
  * but is correct for our type 4 + batch call flow.
  */
 const isCapabilitySupported = (
-  supported: Record<string, SupportedCapability> | undefined,
+  supported: Capabilities | undefined,
   name: string,
 ): boolean => {
   const cap = supported?.[name];
@@ -133,7 +133,7 @@ export const handleProviderRequest = ({
   getCapabilities?: (params: {
     address: Address;
     chainIds: number[];
-  }) => Promise<Record<number, Record<string, SupportedCapability>>>;
+  }) => Promise<Record<number, Capabilities>>;
   getBatchByKey?: (params: {
     id: string;
     sender: Address;

@@ -41,10 +41,6 @@ export type SendCallsParams = WalletSendCallsParameters<
   Hex
 >[0];
 
-/** Supported capability value from wallet (atomic uses status, others use supported) */
-export type SupportedCapability =
-  | { status: 'supported' | 'ready' | 'unsupported' }
-  | { supported: boolean };
 
 export type BatchRecordBase = {
   id: string;

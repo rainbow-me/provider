@@ -8,7 +8,7 @@ import {
   ProviderRequestPayload,
   RequestResponse,
 } from './references/messengers';
-import { Address, isHex, toHex } from 'viem';
+import { type Address, isHex, toHex } from 'viem';
 import { mainnet, optimism } from 'viem/chains';
 import { StaticJsonRpcProvider } from '@ethersproject/providers';
 

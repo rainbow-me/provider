@@ -5,7 +5,7 @@ import { isAddress } from 'viem';
 const MAX_BATCH_ID_LENGTH = 8194;
 
 /** Valid batch id type (non-empty string within max length). */
-export type BatchId = string;
+type BatchId = string;
 
 /** Typeguard: returns true if id is a valid batch id. */
 export const isBatchId = (id: unknown): id is BatchId =>

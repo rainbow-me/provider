@@ -4,7 +4,6 @@ export { createProviderError } from './error';
 export {
   validateSendCallsId,
   validateSendCallsFrom,
-  BatchId,
   isBatchId,
 } from './validation/sendCalls';
 export { IMessageSender } from './references/messengers';

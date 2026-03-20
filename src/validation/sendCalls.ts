@@ -1,4 +1,3 @@
-import { createProviderError } from '../error';
 import { isAddress, type Hex } from 'viem';
 
 /** EIP-5792: Max batch id length (4096 bytes = 8194 chars with 0x prefix) */
@@ -24,21 +23,3 @@ export const getSendCallsIdValidationError = (
   return null;
 };
 
-/** Returns validation error message if from is invalid when provided, null otherwise. */
-export const getSendCallsFromValidationError = (
-  from: unknown,
-): { message: string } | null => {
-  if (from === undefined || from === null) return null;
-  if (typeof from !== 'string') return { message: 'from must be a string' };
-  if (!isAddress(from)) return { message: 'Invalid from address' };
-  return null;
-};
-
-/**
- * Validates app-provided from for wallet_sendCalls.
- * Throws createProviderError('INVALID_PARAMS', ...) if invalid.
- */
-export const validateSendCallsFrom = (from: unknown): void => {
-  const err = getSendCallsFromValidationError(from);
-  if (err) throw createProviderError('INVALID_PARAMS', err.message);
-};

@@ -19,7 +19,7 @@ import {
   getSendCallsIdValidationError,
   isBatchId,
 } from './validation/sendCalls';
-import { type Address, type Hex, isAddress, isHex } from 'viem';
+import { type Address, type Chain, type Hex, isAddress, isHex } from 'viem';
 import {
   CallbackOptions,
   IProviderRequestTransport,
@@ -28,7 +28,6 @@ import {
 import { ActiveSession } from './references/appSession';
 import { toHex } from './utils/hex';
 import { errorCodes } from './references/errorCodes';
-import { ChainNativeCurrency } from 'viem/_types/types/chain';
 
 import { buildError, isPassThroughError, toPassThroughResponse } from './error';
 
@@ -105,7 +104,7 @@ export const handleProviderRequest = ({
   getSupportedChainIds: () => number[];
   getActiveSession: ({ host }: { host: string }) => ActiveSession;
   removeAppSession?: ({ host }: { host: string }) => void;
-  getChainNativeCurrency: (chainId: number) => ChainNativeCurrency | undefined;
+  getChainNativeCurrency: (chainId: number) => Chain['nativeCurrency'] | undefined;
   getProvider: (options: { chainId?: number }) => Provider;
   messengerProviderRequest: (
     request: ProviderRequestPayload,

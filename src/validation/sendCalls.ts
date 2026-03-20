@@ -1,8 +1,8 @@
 import { createProviderError } from '../error';
-import { MAX_BATCH_ID_LENGTH } from '../references/ethereum';
 import { isAddress } from 'viem';
 
-export { MAX_BATCH_ID_LENGTH };
+/** EIP-5792: Max batch id length (4096 bytes = 8194 chars with 0x prefix) */
+const MAX_BATCH_ID_LENGTH = 8194;
 
 /** Valid batch id type (non-empty string within max length). */
 export type BatchId = string;

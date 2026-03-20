@@ -38,9 +38,6 @@ export type EIP5792Call = {
   capabilities?: Record<string, RequestCapability>;
 };
 
-/** EIP-5792: Max batch id length (4096 bytes = 8194 chars with 0x prefix) */
-export const MAX_BATCH_ID_LENGTH = 8194;
-
 export type SendCallsParams = {
   version: string;
   chainId: Hex;

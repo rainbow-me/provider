@@ -4,7 +4,6 @@ export { createProviderError } from './error';
 export {
   validateSendCallsId,
   validateSendCallsFrom,
-  MAX_BATCH_ID_LENGTH,
   BatchId,
   isBatchId,
 } from './validation/sendCalls';
